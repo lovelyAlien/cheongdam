@@ -165,30 +165,54 @@
 **공식 API:** 「한국부동산원_청약홈 분양정보 조회 서비스」 (https://www.data.go.kr/data/15098547/openapi.do)
 - REST(JSON/XML), `serviceKey` 인증, 무료
 - 개발계정 트래픽 40,000건. 운영계정은 활용사례를 등록하면 늘릴 수 있다.
+- 호출 주소: `https://api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1/<오퍼레이션>`
+  - 인증키는 Decoding 키를 URL 인코딩해 `serviceKey`로 넘긴다(Encoding 키를 다시 인코딩하면 인증 오류).
+  - 페이지는 `page`, `perPage`(1,000까지 동작 확인)로 넘기고, 조건은 `cond[필드::EQ|GTE|LTE]`로 서버에서 거른다.
+  - 응답 형태: `{ page, perPage, totalCount, matchCount, currentCount, data: [...] }`
 - 사용할 오퍼레이션
-  - `getAPTLttotPblancDetail` / `getAPTLttotPblancMdl`: APT 공고 / 주택형별 정보
-  - `getRemndrLttotPblancDetail` / `getRemndrLttotPblancMdl`: 무순위·잔여세대 공고 / 주택형별 정보
+  - `getAPTLttotPblancDetail` / `getAPTLttotPblancMdl`: APT 공고 / 주택형별 정보 (주택형별은 `cond[HOUSE_MANAGE_NO::EQ]`로 공고와 연결)
+  - `getRemndrLttotPblancDetail` / `getRemndrLttotPblancMdl`: 무순위·잔여세대 공고 / 주택형별 정보 (아직 호출해 보지 않음)
+- **공고 키:** `HOUSE_MANAGE_NO`(주택관리번호). 2026-10-17 기준 전체 APT 공고 2,907건에서 `PBLANC_NO`와 항상 같고 중복이 없다.
 - **API로 받을 수 없는 것:** 자격 요건(소득 기준, 거주지 우선, 특별공급 세부 조건)은 공고문 PDF에만 있다.
 - **정정 공고:** 수정일시나 정정 여부 필드가 없다.
 
+**공고문 PDF 받는 경로 (2026-10-17 확인)**
+
+`PBLANC_URL`은 PDF가 아니라 청약홈 상세 페이지(HTML)다. PDF는 두 단계로 받는다.
+
+1. `PBLANC_URL`(상세 페이지)을 받아 "모집공고문 보기" 링크를 찾는다.
+2. 링크(`https://static.applyhome.co.kr/ai/aia/getAtchmnfl.do?houseManageNo=…&pblancNo=…&atchmnflSeqNo=…&atchmnflSn=…`)로 PDF를 받는다.
+
+- 첨부파일 번호(`atchmnflSeqNo`, `atchmnflSn`)는 API에 없어서 1단계가 꼭 필요하다.
+- 로그인이나 세션 쿠키 없이 받을 수 있다.
+- 응답 `Content-Type`이 `application/octet-stream`이므로, PDF 여부는 `Content-Disposition` 파일명이나 파일 첫 바이트(`%PDF`)로 판별한다.
+
 **API로 받을 데이터**
 
-- 조사됨: 서비스 소개 조사에서 제공한다고 확인한 항목. 실제 응답은 아직 검증하지 않았다.
-- 확인 필요: 제공 여부를 아직 모르는 항목 (미해결 질문 4)
-- 필드명은 예상 값이다. 모두 1주차 API 실험에서 실제 응답으로 확인한다.
+- 확인됨: 2026-10-17 APT 오퍼레이션 실제 응답으로 확인한 항목. 응답 샘플은 `docs/api-samples/`에 있다.
+- 의미 추정: 필드는 있지만 값의 의미는 필드명과 값으로 추정한 항목. 오퍼레이션 명세로 다시 확인한다.
 
-| 구분 | 데이터 | 쓰는 곳 | 예상 필드명 | 상태 |
+| 구분 | 데이터 | 쓰는 곳 | 필드명 | 상태 |
 |---|---|---|---|---|
-| 공고 | 공급지역 | F2-1, F3-1 | `SUBSCRPT_AREA_CODE_NM` | 조사됨 |
-| 공고 | 주택 구분(민영/국민) | F3-2 | `HOUSE_DTL_SECD_NM` | 확인 필요 |
-| 공고 | 단지명(주택명) | F2-1, F3-8 | `HOUSE_NM` | 확인 필요 |
-| 공고 | 모집공고일, 접수 일정(특별공급·1·2순위), 당첨자 발표일, 계약일 | F2-1, F3-4, F3-10 | - | 조사됨 |
-| 공고 | 규제 여부, 홈페이지 주소, 공고 URL | F2-1, F6-1 | - | 조사됨 |
-| 주택형 | 세대수, 특별공급 유형별 세대수 | F2-1, F3-5 | - | 조사됨 |
-| 주택형 | 최고 분양가 | F2-1, F3-6 | `LTTOT_TOP_AMOUNT` | 조사됨 |
-| 주택형 | 공급면적 | F1-2, F3-7 | `SUPLY_AR` | 확인 필요 |
+| 공고 | 공급지역 | F2-1, F3-1 | `SUBSCRPT_AREA_CODE_NM` (예: "부산") | 확인됨 |
+| 공고 | 주택 구분(민영/국민) | F3-2 | `HOUSE_DTL_SECD_NM` (예: "민영"), 코드는 `HOUSE_DTL_SECD` | 확인됨 |
+| 공고 | 단지명(주택명) | F2-1, F3-8 | `HOUSE_NM` | 확인됨 |
+| 공고 | 모집공고일 | F2-1, F3-10 | `RCRIT_PBLANC_DE` | 확인됨 |
+| 공고 | 접수 일정(특별공급·1·2순위) | F2-1, F3-4 | `SPSPLY_RCEPT_BGNDE/ENDDE`, `GNRL_RNK1_*`, `GNRL_RNK2_*` (해당지역·기타경기·기타지역별, 없으면 `null`) | 확인됨 |
+| 공고 | 당첨자 발표일, 계약일 | F2-1 | `PRZWNER_PRESNATN_DE`, `CNTRCT_CNCLS_BGNDE/ENDDE` | 확인됨 |
+| 공고 | 규제 여부 | F2-1 | `SPECLT_RDN_EARTH_AT`, `MDAT_TRGET_AREA_SECD`, `PARCPRC_ULS_AT` 등 (`Y`/`N`) | 의미 추정 |
+| 공고 | 홈페이지 주소, 공고 URL | F2-1, F6-1 | `HMPG_ADRES`, `PBLANC_URL` | 확인됨 |
+| 공고 | 공급 위치 상세 주소, 총 공급세대수, 입주 예정 연월 | F2-1 | `HSSPLY_ADRES`, `TOT_SUPLY_HSHLDCO`, `MVN_PREARNGE_YM` (예: "203102") | 확인됨 (새로 발견) |
+| 주택형 | 주택형 | F2-1 | `HOUSE_TY` (예: "084.8860A", 끝에 공백이 붙기도 함) | 확인됨 |
+| 주택형 | 세대수 | F2-1 | `SUPLY_HSHLDCO`(일반공급), `SPSPLY_HSHLDCO`(특별공급 합계) | 확인됨 |
+| 주택형 | 특별공급 유형별 세대수 | F2-1, F3-5 | `NWWDS_`(신혼부부), `LFE_FRST_`(생애최초), `MNYCH_`(다자녀), `NWBB_`(신생아), `OLD_PARNTS_SUPORT_`(노부모), `YGMN_`(청년), `INSTT_RECOMEND_`(기관추천) 등 + `HSHLDCO` | 확인됨 |
+| 주택형 | 최고 분양가 | F2-1, F3-6 | `LTTOT_TOP_AMOUNT` (문자열, 단위 만원) | 확인됨 |
+| 주택형 | 공급면적 | F1-2, F3-7 | `SUPLY_AR` (문자열, ㎡) | 확인됨 |
 
-공고 유형(F3-3)은 필드가 아니라 호출한 오퍼레이션으로 구분한다.
+- 공고 유형(F3-3)은 필드가 아니라 호출한 오퍼레이션으로 구분한다.
+- 세대수 검증: 주택형별 `SUPLY_HSHLDCO` + `SPSPLY_HSHLDCO`의 합이 공고의 `TOT_SUPLY_HSHLDCO`와 같고, 특별공급 유형별 세대수의 합이 `SPSPLY_HSHLDCO`와 같다(샘플 1건 기준).
+- 저장할 때 다듬을 것: 분양가·공급면적은 숫자로 바꿔 저장하고(범위 필터용), `HOUSE_TY`는 앞뒤 공백을 자른다.
+- 단지명에 "(조합원 취소분)", "추가모집" 같은 표기가 붙은 공고가 섞여 있다.
 
 ## 8. 기술 고려사항
 
@@ -222,15 +246,17 @@
 
 ## 11. 미해결 질문
 
+질문 번호는 다른 문서에서 참조하므로, 해결된 질문을 지워도 바꾸지 않는다.
+
 **실데이터로 확인할 것 (1주차 API·PDF 실험)**
-1. 정정 공고가 같은 공고번호로 덮어써지는가, 새 번호로 따로 등록되는가?
-2. API의 `PBLANC_URL`에서 공고문 PDF를 바로 받을 수 있는가, 아니면 별도 다운로드 절차가 필요한가?
-3. 공고문 PDF는 대부분 텍스트 PDF인가, 표와 이미지가 많은가? 어떤 파싱 방식이 적합한가?
-4. 주택 구분(민영/국민), 단지명, 공급면적이 API 응답에 있는가? 필드명은 무엇인가? (F3 필터에 필요)
+- **1.** 정정 공고가 같은 공고번호로 덮어써지는가, 새 번호로 따로 등록되는가?
+  - **잠정 결론 (2026-10-17): 같은 번호로 덮어쓴다.** 전체 APT 공고 2,907건에서 `HOUSE_MANAGE_NO`≠`PBLANC_NO`, 관리번호 중복, 단지명의 "정정·변경" 표기가 모두 0건이었다. 단지명이 같은 공고 37묶음은 모두 36일 이상 간격의 재공급(추가모집 등)이었다.
+  - 확정 방법: `docs/api-samples/snapshot_2026-10-17.json`과 며칠 뒤 같은 조건으로 다시 받은 결과를 비교해, 같은 번호의 값이 바뀐 공고가 있는지 본다. API 값은 그대로이고 공고문 PDF만 바뀌는 경우도 있을 수 있으니 PDF 링크의 `atchmnflSeqNo`도 함께 비교한다.
+- **3.** 공고문 PDF는 대부분 텍스트 PDF인가, 표와 이미지가 많은가? 어떤 파싱 방식이 적합한가?
 
 **결정할 것**
-5. 회원가입 없이 이메일만으로 알림을 구독하게 할 것인가? (F3-11, F7에 영향, 킥오프에서 결정)
-6. 기존 서비스(청약홈 앱, 부동산 앱 등)의 알림·요약 기능과 비교한 차별점은 무엇인가? (런칭 전 검증)
+- **5.** 회원가입 없이 이메일만으로 알림을 구독하게 할 것인가? (F3-11, F7에 영향, 킥오프에서 결정)
+- **6.** 기존 서비스(청약홈 앱, 부동산 앱 등)의 알림·요약 기능과 비교한 차별점은 무엇인가? (런칭 전 검증)
 
 ## 12. 향후 확장 후보
 
