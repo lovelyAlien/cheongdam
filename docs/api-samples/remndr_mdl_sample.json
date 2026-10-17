@@ -1,0 +1,49 @@
+{
+  "currentCount": 4,
+  "data": [
+    {
+      "HOUSE_MANAGE_NO": "2026910264",
+      "HOUSE_TY": "048.8190 ",
+      "LTTOT_TOP_AMOUNT": "37900",
+      "MODEL_NO": "01",
+      "PBLANC_NO": "2026910264",
+      "SPSPLY_HSHLDCO": 0,
+      "SUPLY_AR": null,
+      "SUPLY_HSHLDCO": 1
+    },
+    {
+      "HOUSE_MANAGE_NO": "2026910264",
+      "HOUSE_TY": "052.1850A",
+      "LTTOT_TOP_AMOUNT": "42500",
+      "MODEL_NO": "02",
+      "PBLANC_NO": "2026910264",
+      "SPSPLY_HSHLDCO": 0,
+      "SUPLY_AR": null,
+      "SUPLY_HSHLDCO": 10
+    },
+    {
+      "HOUSE_MANAGE_NO": "2026910264",
+      "HOUSE_TY": "059.6120A",
+      "LTTOT_TOP_AMOUNT": "48500",
+      "MODEL_NO": "03",
+      "PBLANC_NO": "2026910264",
+      "SPSPLY_HSHLDCO": 0,
+      "SUPLY_AR": null,
+      "SUPLY_HSHLDCO": 3
+    },
+    {
+      "HOUSE_MANAGE_NO": "2026910264",
+      "HOUSE_TY": "059.0570C",
+      "LTTOT_TOP_AMOUNT": "45900",
+      "MODEL_NO": "04",
+      "PBLANC_NO": "2026910264",
+      "SPSPLY_HSHLDCO": 0,
+      "SUPLY_AR": null,
+      "SUPLY_HSHLDCO": 2
+    }
+  ],
+  "matchCount": 4,
+  "page": 1,
+  "perPage": 50,
+  "totalCount": 4779
+}
