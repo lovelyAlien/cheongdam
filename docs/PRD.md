@@ -287,16 +287,17 @@
 
 | 영역 | 선택 | 상태 |
 |---|---|---|
-| 프론트엔드 | React SPA (Vite). 원문 뷰어는 PDF.js | 확정 (2026-10-20) |
-| 백엔드 | Spring Boot (Java). 공고·구독 API, 메일 렌더링·발송, 공고 상세 URL의 메타 태그 | 확정 (2026-10-20) |
+| 프론트엔드 | React SPA (Vite, TypeScript). 원문 뷰어는 PDF.js | 확정 (2026-10-20) |
+| 백엔드 | Spring Boot (Java LTS, Gradle). 공고·구독 API, 메일 렌더링·발송, 공고 상세 URL의 메타 태그. 정확한 버전은 2주차 골격을 만들 때 Spring Initializr의 최신 안정 버전으로 고정한다 | 확정 (2026-10-20) |
 | 데이터 배치 | Python. 수집, 정정 감지, PDF 수집, LLM 추출, 알림 대상 매칭 | 확정 (1주차 실험 코드를 이어 씀) |
 | LLM | Claude API (claude-opus-5-5). 공고문 PDF를 그대로 넣고 citations로 쪽 번호와 인용 문구를 받는다. citations는 structured outputs와 함께 쓸 수 없어서 정해진 줄 형식의 텍스트로 받는다. | 실험으로 확인 (`experiments/pdf_extraction/extract.py`) |
 | 인프라 | 네이버 클라우드 플랫폼(NCP) VM 한 대에 Docker Compose로 모두 올린다. 메모리 4GB 이상 권장 | 확정 (2026-10-20) |
 | 이메일 발송 | NCP Cloud Outbound Mailer | 확정 (2026-10-20). 무료 구간·단가는 콘솔 요금 안내에서 확인한다. 2026-09-17 SENS(Simple & Easy Notification Service)로 통합되었다는 안내가 있어 콘솔의 서비스 이름을 함께 확인한다 |
-| DB | PostgreSQL (VM의 Docker 컨테이너), 하루 1회 백업 | 제안 |
-| 웹 서버 | Nginx: React 정적 파일 서빙, Spring 리버스 프록시, HTTPS(Let's Encrypt) | 제안 |
-| PDF 저장 | VM 디스크, DB 백업과 함께 백업 | 제안 |
-| 배치 실행 | VM의 cron이 Python 배치 컨테이너를 실행(P-10, P-17 시각) | 제안 |
+| DB | PostgreSQL (VM의 Docker 컨테이너). 하루 1회 덤프를 NCP Object Storage로 백업 | 확정 (2026-10-20) |
+| 웹 서버 | Nginx: React 정적 파일 서빙, Spring 리버스 프록시, HTTPS(Let's Encrypt) | 확정 (2026-10-20) |
+| PDF 저장 | VM 디스크. 하루 1회 NCP Object Storage로 백업 | 확정 (2026-10-20) |
+| 배치 실행 | VM의 cron이 Python 배치 컨테이너를 실행(P-10, P-17 시각) | 확정 (2026-10-20) |
+| 도메인 | `cheongdam.app` (HTTPS 강제 도메인). 메일 발신 도메인 인증(SPF·DKIM)에도 쓴다 | 확정, 등록 예정 (2026-10-20 레지스트리 조회 시 미등록) |
 
 **구성**
 
