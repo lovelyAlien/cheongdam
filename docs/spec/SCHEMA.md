@@ -211,7 +211,7 @@ CREATE TABLE extracted_item (
         -- 분류 6일 때만. SCREENS.md 블록 B의 7개 코드와 같다
     targets         text[] NOT NULL DEFAULT '{전체}',     -- '전체' 또는 공급 유형 코드(general_1st … resupply)
     requirement     text NOT NULL,                        -- 요건 문장
-    criteria_table  jsonb,                                -- 소득·자산 기준 표(선택)
+    criteria_table  jsonb,                                -- 소득·자산 기준 표(선택). MVP는 NULL(D-25)
     is_general_rule boolean NOT NULL DEFAULT false,       -- 일반 규정이면 블록 C 맨 아래에 접음
     status          text NOT NULL CHECK (status IN ('confirmed','needs_review')),  -- P-05
     sort_order      int NOT NULL DEFAULT 0,
@@ -324,6 +324,8 @@ CREATE UNIQUE INDEX alert_log_dedup_idx ON alert_log (subscription_id, house_man
 | 5 | 스키마 소유 | B가 Flyway로 소유(`V1__init.sql` …). A는 변경이 필요하면 B에게 PR로 요청 |
 | 6 | 무순위 공고의 `house_kind`·`is_regulated`가 `NULL`일 때 필터 | P-04 그대로. 해당 필터를 쓰면 제외하고 안내 배너 |
 | 7 | 추출 결과 `targets`(대상) | 자유 문장이 아니라 공급 유형 코드 목록. 추출 지시문이 [DATA.md 2장](DATA.md#2-추출-결과)의 코드 중에서 고르게 하고, 파서가 코드에 없는 값을 `unknown_targets`로 표시한다. 코드에 없는 유형은 `기타`로 받아 검토한다 |
+| 8 | 소득 기준 금액표(가구원수×소득구분) | MVP는 추출하지 않는다. 소득 비율과 자산 기준만 요건으로 두고, 금액표는 근거 칩(`item_evidence`)으로 원문 쪽을 보여 준다. `criteria_table`은 NULL로 둔다 |
+| 9 | `payment` 범위 | 계약금·중도금·잔금의 비율과 납부 시점(입주지정일 포함). 코드는 `payment` 그대로 |
 
 **`conditions` 키 (v1)**
 
