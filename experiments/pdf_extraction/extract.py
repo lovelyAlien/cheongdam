@@ -37,19 +37,56 @@ INSTRUCTION = """첨부한 입주자모집공고문에서 청약 신청 자격 �
 3. 일반공급 순위 요건 (1순위·2순위 조건, 지역 우선공급)
 4. 특별공급 유형별 요건 (유형마다 따로: 기관추천, 다자녀, 신혼부부, 생애최초, 노부모부양, 신생아, 청년 등 공고에 있는 것만)
 5. 소득·자산 기준 (유형별 소득 비율, 자산·자동차 기준)
-6. 당첨 후 제약 (아래 6개 항목만. 공고에 없는 항목은 "- 해당 없음" 대신 아예 쓰지 않습니다)
-   재당첨 제한, 부적격 당첨 제한, 전매 제한, 실거주 의무, 계약금·중도금(비율과 납부 시점), 중복 청약 제한
+6. 당첨 후 제약 (아래 7개 항목만. 공고에 없는 항목은 아예 쓰지 않습니다)
+   재당첨 제한, 청약 제한, 부적격 당첨 제한, 전매 제한, 실거주 의무, 계약금·중도금(비율과 납부 시점), 중복 청약 제한
+   - 재당첨 제한: 당첨되면 일정 기간 다른 분양주택의 입주자로 선정될 수 없는 제한, 또는 그 제한을 적용받지 않는다는 안내
+   - 청약 제한: 당첨되면 일정 기간 투기과열지구·청약과열지역의 1순위 접수나 가점제 청약이 제한되는 경우(예: 5년간 1순위 접수 제한, 2년간 가점제 제한)
 
 작성 규칙:
 - 분류 제목은 "## 1. 공통 자격"처럼 씁니다.
-- 요건은 한 줄에 하나씩 "- [대상] 요건" 형식으로 씁니다. [대상]은 그 요건이 적용되는 공급 유형입니다(예: [전체], [일반공급 1순위], [신혼부부 특별공급]).
-- 분류 6의 요건은 "- [대상] 항목명: 내용" 형식으로 쓰고, 항목명은 위 6개 중 하나를 그대로 씁니다. 기간·대상·비율·납부 시점은 공고문 그대로 씁니다.
+- 요건은 한 줄에 하나씩 "- [대상] 요건" 형식으로 씁니다. [대상]은 아래 공급 유형 코드를 쉼표로 이어 쓰고(예: [general_1st], [newlywed,newborn]), 모든 공급 유형에 적용되면 [전체]라고 씁니다.
+  general_1st=일반공급 1순위, general_2nd=일반공급 2순위, newlywed=신혼부부 특별공급, first_home=생애최초 특별공급, multi_child=다자녀가구 특별공급, newborn=신생아 특별공급, elderly_parent=노부모부양 특별공급, youth=청년 특별공급, institution=기관추천 특별공급(국가유공자·장애인·철거민·지역균형발전 등 포함), no_rank=무순위, resupply=불법행위 재공급
+  특별공급 전체에 공통인 요건은 이 공고에 있는 특별공급 유형 코드를 모두 나열하고, 일반공급 1·2순위 공통이면 general_1st,general_2nd로 씁니다. 출산특례·혼인특례·우선공급 같은 단계나 특례는 대상이 아니라 요건 문장에 쓰고, 대상은 그 요건이 적용되는 공급 유형 코드로 씁니다. 위 코드에 없는 유형이면 [기타]라고 쓰고 요건 문장에 유형 이름을 씁니다.
+- 분류 6의 요건은 "- [대상] 항목명: 내용" 형식으로 쓰고, 항목명은 위 7개 중 하나를 그대로 씁니다. 기간·대상·비율·납부 시점은 공고문 그대로 씁니다.
 - 요건 문장은 한 문장, 80자 안팎으로 짧고 쉽게 씁니다. 공고문 문장을 통째로 옮기지 않습니다. 숫자·기간·비율은 공고문 그대로 씁니다.
 - 「주택공급에 관한 규칙」을 옮겨 적은 일반 정의와 예외 목록(세대의 정의, 무주택으로 보는 경우, 주택 처분 기준일, 소형·저가주택 기준 등)은 뽑지 않습니다. 모든 공고에 같은 내용이라 서비스가 고정 설명으로 보여 줍니다. 이 공고에서 그 규정을 별도로 달리 정한 부분만 씁니다.
 - 하나의 목록(예: 청약 신청 불가 대상)은 요건 하나로 묶어 씁니다. 표를 문장으로 옮길 때는 열 이름(예: 수도권/비수도권)을 함께 씁니다.
 - 이 공고에만 해당하는 조건(거주 지역, 판단 기준일, 소득 비율, 재당첨 제한 기간 등)은 빠짐없이 씁니다.
 - 각 요건은 반드시 그 요건의 숫자와 조건이 직접 적힌 공고문 부분을 인용해서 뒷받침합니다.
 - 서론이나 맺음말은 쓰지 않습니다."""
+
+
+TARGET_CODES = {
+    "전체", "general_1st", "general_2nd", "newlywed", "first_home", "multi_child",
+    "newborn", "elderly_parent", "youth", "institution", "no_rank", "resupply",
+}
+CONSTRAINT_CODES = {  # 분류 6 항목명 -> constraint_code (docs/spec/SCHEMA.md)
+    "재당첨 제한": "rewin_limit",
+    "청약 제한": "apply_restriction",
+    "부적격 당첨 제한": "ineligible_limit",
+    "전매 제한": "resale_limit",
+    "실거주 의무": "residence_duty",
+    "계약금·중도금": "payment",
+    "중복 청약 제한": "duplicate_apply",
+}
+
+
+def parse_requirement(text: str, section: str | None) -> dict:
+    """'[대상] 항목명: 내용'을 대상 코드 목록, 제약 코드, 본문으로 나눈다. 인용 경계에서 사라진 공백도 고친다."""
+    text = " ".join(text.split())
+    m = re.match(r"^\[([^\]]*)\]\s*(.*)$", text)
+    targets, body = ([t.strip() for t in m.group(1).split(",") if t.strip()], m.group(2)) if m else ([], text)
+    constraint = None
+    if section and section.startswith("6."):
+        cm = re.match(r"^([^:：]+?)\s*[:：]\s*(.*)$", body)
+        if cm and cm.group(1).strip() in CONSTRAINT_CODES:
+            constraint, body = CONSTRAINT_CODES[cm.group(1).strip()], cm.group(2)
+    return {
+        "targets": targets,
+        "unknown_targets": [t for t in targets if t not in TARGET_CODES],
+        "constraint_code": constraint,
+        "body": body,
+    }
 
 
 def notice_label(path: Path) -> str:
@@ -113,14 +150,15 @@ def to_records(message) -> list[dict]:
             current["citations"].extend(cites)
     for r in records:
         r["text"] = " ".join(r["text"].split())
+        r.update(parse_requirement(r["text"], r["section"]))
         r["unverified_numbers"] = unverified_numbers(r)
     return records
 
 
 def unverified_numbers(record: dict) -> list[str]:
-    """요건 문장의 숫자가 인용 문구에 없으면 근거가 요건을 뒷받침하지 않을 가능성이 있다."""
+    """요건 본문의 숫자가 인용 문구에 없으면 근거가 요건을 뒷받침하지 않을 가능성이 있다. 대상 코드의 숫자는 세지 않는다."""
     cited = re.sub(r"\s", "", "".join(c["text"] for c in record["citations"]))
-    return [n for n in dict.fromkeys(re.findall(r"\d+(?:[.,]\d+)?", record["text"])) if n not in cited]
+    return [n for n in dict.fromkeys(re.findall(r"\d+(?:[.,]\d+)?", record["body"])) if n not in cited]
 
 
 def run(client: anthropic.Anthropic, paths: list[Path]) -> None:
@@ -176,7 +214,9 @@ def write_markdown(result: dict) -> None:
             section = r["section"]
             lines += ["", f"## {section}", ""]
         flag = f" ⚠️ 인용에 없는 숫자: {', '.join(r['unverified_numbers'])}" if r.get("unverified_numbers") else ""
-        lines.append(f"- {r['text']}{flag}")
+        unknown = f" ⚠️ 알 수 없는 대상: {', '.join(r['unknown_targets'])}" if r.get("unknown_targets") else ""
+        label = f"[{','.join(r['targets'])}] " if r["targets"] else ""
+        lines.append(f"- {label}{r['body']}{flag}{unknown}")
         for c in r["citations"]:
             page = f"p.{c['page']}" if c["page"] == c["end_page"] else f"p.{c['page']}-{c['end_page']}"
             quote = " ".join(c["text"].split())
