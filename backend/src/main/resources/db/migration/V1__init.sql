@@ -148,8 +148,8 @@ CREATE TABLE extracted_item (
     version         int  NOT NULL,
     category        smallint NOT NULL CHECK (category BETWEEN 1 AND 6),   -- DATA 2장 분류
     constraint_code text CHECK (constraint_code IN
-        ('rewin_limit','resale_limit','ineligible_limit','duplicate_apply','residence_duty','payment')),
-        -- 분류 6일 때만. SCREENS.md 블록 B의 6개 코드와 같다
+        ('rewin_limit','apply_restriction','resale_limit','ineligible_limit','duplicate_apply','residence_duty','payment')),
+        -- 분류 6일 때만. SCREENS.md 블록 B의 7개 코드와 같다
     targets         text[] NOT NULL DEFAULT '{전체}',     -- '전체' 또는 공급 유형 코드(general_1st … resupply)
     requirement     text NOT NULL,                        -- 요건 문장
     criteria_table  jsonb,                                -- 소득·자산 기준 표(선택)
