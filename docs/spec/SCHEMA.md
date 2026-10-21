@@ -207,8 +207,8 @@ CREATE TABLE extracted_item (
     version         int  NOT NULL,
     category        smallint NOT NULL CHECK (category BETWEEN 1 AND 6),   -- DATA 2장 분류
     constraint_code text CHECK (constraint_code IN
-        ('rewin_limit','resale_limit','ineligible_limit','duplicate_apply','residence_duty','payment')),
-        -- 분류 6일 때만. SCREENS.md 블록 B의 6개 코드와 같다
+        ('rewin_limit','apply_restriction','resale_limit','ineligible_limit','duplicate_apply','residence_duty','payment')),
+        -- 분류 6일 때만. SCREENS.md 블록 B의 7개 코드와 같다
     targets         text[] NOT NULL DEFAULT '{전체}',     -- '전체' 또는 공급 유형 코드(general_1st … resupply)
     requirement     text NOT NULL,                        -- 요건 문장
     criteria_table  jsonb,                                -- 소득·자산 기준 표(선택)
@@ -317,12 +317,13 @@ CREATE UNIQUE INDEX alert_log_dedup_idx ON alert_log (subscription_id, house_man
 
 | # | 질문 | 결정 |
 |---|---|---|
-| 1 | `constraint_code` 6개 코드명 | SCREENS.md 블록 B와 같은 코드(`rewin_limit`, `ineligible_limit`, `resale_limit`, `residence_duty`, `payment`, `duplicate_apply`)로 확정 |
+| 1 | `constraint_code` 코드명 | SCREENS.md 블록 B와 같은 7개 코드(`rewin_limit`, `apply_restriction`, `ineligible_limit`, `resale_limit`, `residence_duty`, `payment`, `duplicate_apply`)로 확정. `apply_restriction`(1순위·가점제 제한)은 2주차 추출 검증(2026-10-22)에서 추가: 당첨 시 5년간 1순위 접수 제한, 2년간 가점제 제한이 재당첨 제한과 섞여 나왔다 |
 | 2 | PDF 보관 | VM 디스크 `data/pdfs/<번호>/<버전>.pdf`. 루트(`data/pdfs`)는 설정값 `PDF_STORAGE_DIR`로 두고, DB의 `pdf_path`에는 루트를 뺀 상대 경로(`2026000437/1.pdf`)만 저장한다. 1주차 실험 파일도 같은 구조로 옮겼다(2026-10-21). 컷 순서 1번(원문 뷰어 축소)이 적용돼도 해시 비교와 재추출을 위해 보관은 유지 |
 | 3 | 구독 `conditions` 키 | 아래 표로 확정. `"v": 1` 버전 필드를 넣고, 매칭 코드는 `v`별로 해석 |
 | 4 | 마지막 구독 해지로 이메일이 지워진 뒤 `[다시 구독하기]` | 조건이 채워진 구독 시트(S-08a)로 이동해 이메일을 다시 입력받는다. 확인 메일부터 다시 시작 |
 | 5 | 스키마 소유 | B가 Flyway로 소유(`V1__init.sql` …). A는 변경이 필요하면 B에게 PR로 요청 |
 | 6 | 무순위 공고의 `house_kind`·`is_regulated`가 `NULL`일 때 필터 | P-04 그대로. 해당 필터를 쓰면 제외하고 안내 배너 |
+| 7 | 추출 결과 `targets`(대상) | 자유 문장이 아니라 공급 유형 코드 목록. 추출 지시문이 [DATA.md 2장](DATA.md#2-추출-결과)의 코드 중에서 고르게 하고, 파서가 코드에 없는 값을 `unknown_targets`로 표시한다. 코드에 없는 유형은 `기타`로 받아 검토한다 |
 
 **`conditions` 키 (v1)**
 
