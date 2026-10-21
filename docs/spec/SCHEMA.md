@@ -318,7 +318,7 @@ CREATE UNIQUE INDEX alert_log_dedup_idx ON alert_log (subscription_id, house_man
 | # | 질문 | 결정 |
 |---|---|---|
 | 1 | `constraint_code` 6개 코드명 | SCREENS.md 블록 B와 같은 코드(`rewin_limit`, `ineligible_limit`, `resale_limit`, `residence_duty`, `payment`, `duplicate_apply`)로 확정 |
-| 2 | PDF 보관 | VM 디스크 `data/pdf/<번호>/<버전>.pdf`. 컷 순서 1번(원문 뷰어 축소)이 적용돼도 해시 비교와 재추출을 위해 보관은 유지 |
+| 2 | PDF 보관 | VM 디스크 `data/pdfs/<번호>/<버전>.pdf`. 컷 순서 1번(원문 뷰어 축소)이 적용돼도 해시 비교와 재추출을 위해 보관은 유지 |
 | 3 | 구독 `conditions` 키 | 아래 표로 확정. `"v": 1` 버전 필드를 넣고, 매칭 코드는 `v`별로 해석 |
 | 4 | 마지막 구독 해지로 이메일이 지워진 뒤 `[다시 구독하기]` | 조건이 채워진 구독 시트(S-08a)로 이동해 이메일을 다시 입력받는다. 확인 메일부터 다시 시작 |
 | 5 | 스키마 소유 | B가 Flyway로 소유(`V1__init.sql` …). A는 변경이 필요하면 B에게 PR로 요청 |
