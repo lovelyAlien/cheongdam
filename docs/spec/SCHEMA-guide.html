@@ -87,7 +87,7 @@ details[open] summary .row::before{content:"▾"}
 <section id="s-map">
   <h2>13개 테이블, 5개 영역</h2>
   <p class="lead">청담은 <b>A(Python)</b>가 <span class="t" data-d="국토부·한국부동산원이 운영하는 청약 신청·공고 공식 사이트">청약홈</span> 데이터를 모으고 PDF를 읽어 DB에 쓰고, <b>B(Spring)</b>가 그것을 화면·메일로 내보내요. 둘은 <b>DB로만</b> 대화해요. 그래서 "테이블마다 쓰는 쪽이 한 명"이 핵심 규칙이에요.</p>
-  <div class="legend"><span><i style="background:var(--a)"></i>A(Python)가 씀</span><span><i style="background:var(--b)"></i>B(Spring)가 씀</span><span><i style="background:var(--ab)"></i>A가 적재 + B가 상태 갱신</span></div>
+  <div class="legend"><span><i style="background:var(--a)"></i>A(Python)가 씀</span><span><i style="background:var(--b)"></i>B(Spring)가 씀</span></div>
   <div class="areas" id="map"></div>
 
   <h2>테이블 관계</h2>
@@ -133,7 +133,7 @@ crawl_run  (독립: 수집 실행 일지)</div>
     <tr><th>시각(KST)</th><th>누가</th><th>무엇을</th><th>주요 테이블</th></tr>
     <tr><td class="n">06:00 · 18:00</td><td><span class="badge A">A</span></td><td>청약홈 수집 → 신규·정정 감지 → PDF 추출 큐 등록</td><td><code>crawl_run</code> <code>notice*</code> <code>extraction_run</code></td></tr>
     <tr><td class="n">수시</td><td><span class="badge A">A</span></td><td>추출 대기열(<code>next_attempt_at</code>) 처리, 실패 시 1h·6h 뒤 재시도</td><td><code>extraction_run</code> <code>extracted_item</code> <code>item_evidence</code></td></tr>
-    <tr><td class="n">07:30 직전</td><td><span class="badge A">A</span></td><td>구독 조건에 맞는 새 공고·정정 골라 발송 대기 적재</td><td><code>alert_outbox</code> <code>alert_outbox_notice</code></td></tr>
+    <tr><td class="n">07:30 직전</td><td><span class="badge B">B</span></td><td>구독 조건에 맞는 새 공고·정정 골라 발송 대기 적재</td><td><code>alert_outbox</code> <code>alert_outbox_notice</code></td></tr>
     <tr><td class="n">07:30</td><td><span class="badge B">B</span></td><td>대기분 메일 발송 → 이력 기록</td><td><code>alert_outbox</code> <code>alert_log</code> <code>subscription</code></td></tr>
     <tr><td class="n">하루 1회</td><td><span class="badge B">B</span></td><td>개인정보 파기: 해지 구독 이메일 삭제, 7일 지난 미확인 구독 삭제</td><td><code>subscription</code></td></tr>
     <tr><td class="n">사용자가 열 때</td><td><span class="badge B">B</span></td><td>목록·상세 조회, 구독 신청·확인·해지</td><td>거의 전부 읽기, 구독만 쓰기</td></tr>
@@ -211,7 +211,7 @@ const DBTERMS = {
  "해시":"내용을 짧은 지문 값으로 바꾼 것. 지문이 다르면 내용이 바뀐 것.",
  "인덱스":"조회를 빠르게 하는 색인.",
  "CASCADE":"부모 행이 지워지면 자식 행도 함께 지우는 규칙.",
- "outbox":"'보낼 것' 목록 테이블. 적재하는 쪽과 발송하는 쪽을 분리해 안전하게 보내는 패턴.",
+ "outbox":"'보낼 것' 목록 테이블. 먼저 적재하고 그다음 발송해, 실패해도 다시 시도하고 중복 발송을 막는 패턴.",
  "idempotent":"여러 번 실행해도 결과가 같음. 중복 발송 방지에 필요.",
  "trigram":"문자열을 3글자씩 쪼개 부분 일치 검색(단지명)을 빠르게 하는 방식.",
 };
@@ -382,8 +382,8 @@ subscription:{who:"B",brief:"이메일 알림 구독 (유일한 개인정보)",
  ["unsubscribed_at","timestamptz","해지 시각","NULL"],
  ["last_sent_at","timestamptz","마지막 발송 시각. '직전 발송 이후' 판단 기준","10-21 07:30"]],
  example:"규칙: 같은 이메일+같은 조건은 중복 불가(pending·active 중), 이메일당 구독은 3개까지. conditions의 키: region(지역), supply(특별공급 유형), price_min/max(분양가), area(le60 / 60to85 / gt85), notice_type, house_kind. 필터 사이는 AND, 한 필터 안의 값들은 OR."},
-alert_outbox:{who:"AB",brief:"오늘 보낼 메일 1통 (발송 대기열)",
- role:"A가 07:30 직전에 '이 구독자에게 오늘 이 메일을 보내라'를 한 줄로 쌓고, B가 읽어 발송한 뒤 상태를 바꿔요. 두 프로그램이 서로를 직접 부르지 않고 이 대기열로만 주고받는 구조(outbox 패턴)예요. (subscription_id, send_date)가 유니크라 한 구독에 하루 한 통이에요.",
+alert_outbox:{who:"B",brief:"오늘 보낼 메일 1통 (발송 대기열)",
+ role:"B(Spring)가 07:30 직전에 '이 구독자에게 오늘 이 메일을 보내라'를 한 줄로 쌓고, 같은 프로그램이 읽어 발송한 뒤 상태를 바꿔요. 발송이 실패해도 대기열에 남아 한 번 더 시도할 수 있어요(outbox 패턴). (subscription_id, send_date)가 유니크라 한 구독에 하루 한 통이에요.",
  cols:[
  ["id","bigserial","메일 번호","31"],
  ["subscription_id","bigint FK","받는 구독 (구독이 지워지면 함께 삭제)","7"],
@@ -393,7 +393,7 @@ alert_outbox:{who:"AB",brief:"오늘 보낼 메일 1통 (발송 대기열)",
  ["attempts","int","시도 횟수. 일시 실패는 1시간 뒤 1회 재시도","0"],
  ["next_attempt_at / error","","재시도 시각 / 실패 사유","—"],
  ["created_at / sent_at","timestamptz","적재·발송 시각","—"]]},
-alert_outbox_notice:{who:"AB",brief:"한 통에 담길 공고 목록",
+alert_outbox_notice:{who:"B",brief:"한 통에 담길 공고 목록",
  role:"메일 1통(alert_outbox)에 어떤 공고들이 들어가는지 적은 명세서예요. 메일을 만들 때 이 목록으로 notice를 읽어 카드를 그려요.",
  cols:[
  ["outbox_id","bigint FK","어느 메일에 담기는지","31"],
@@ -489,13 +489,13 @@ const SC=[
  ["status='pending'으로 저장하고 확인 메일을 보내요. 토큰은 7일 유효.","consent_at에 동의 시각 기록"],
  ["메일의 링크를 누르면 confirmed_at이 찍히고 status='active'. 이제부터 알림 대상이에요.","7일 안에 안 누르면 행 삭제"],
  ["해지하면 unsubscribed_at 기록 후, 그 이메일의 모든 구독이 pending/active가 아니면 email을 NULL로 지워요.","개인정보 즉시 파기"]]},
-{k:"alert",n:"⑦ 알림 발송",when:"매일 07:30 (A → B)",
+{k:"alert",n:"⑦ 알림 발송",when:"매일 07:30 (B)",
  rw:{subscription:"r",notice:"r",alert_log:"w",alert_outbox:"w",alert_outbox_notice:"w",crawl_run:"r"},
  steps:[
- ["(A) 06:00 수집이 success로 끝났는지 crawl_run으로 확인해요.",""],
- ["(A) active 구독마다 conditions에 맞는 공고를 찾아요. 새 공고는 first_collected_at > 직전 발송 + 접수 예정·중, 정정은 last_changed_at > 직전 발송 + 계약 종료 전.","DEV001 v2 정정이 경기·신혼 조건에 맞음"],
- ["(A) alert_log에 이미 있는 (공고, 버전, 종류)는 뺍니다 → 중복 방지.",""],
- ["(A) 남은 게 있으면 alert_outbox 1행 + alert_outbox_notice 여러 행을 한 트랜잭션으로 넣어요. 새+정정이 같은 날이면 combined 한 통.","UNIQUE(구독, send_date)가 하루 한 통을 보장"],
+ ["(B) 06:00 수집이 success로 끝났는지 crawl_run으로 확인해요.",""],
+ ["(B) active 구독마다 conditions에 맞는 공고를 찾아요. 새 공고는 first_collected_at > 직전 발송 + 접수 예정·중, 정정은 last_changed_at > 직전 발송 + 계약 종료 전.","DEV001 v2 정정이 경기·신혼 조건에 맞음"],
+ ["(B) alert_log에 이미 있는 (공고, 버전, 종류)는 뺍니다 → 중복 방지.",""],
+ ["(B) 남은 게 있으면 alert_outbox 1행 + alert_outbox_notice 여러 행을 한 트랜잭션으로 넣어요. 새+정정이 같은 날이면 combined 한 통.","UNIQUE(구독, send_date)가 하루 한 통을 보장"],
  ["(B) pending 행을 읽어 notice 데이터로 메일을 만들어 발송해요.",""],
  ["(B) 성공하면 한 트랜잭션으로 alert_log 추가 + outbox status='sent' + subscription.last_sent_at 갱신. 일시 실패면 1시간 뒤 1회 재시도, 영구 반송이면 그 이메일 구독을 suspended로.",""]]},
 ];

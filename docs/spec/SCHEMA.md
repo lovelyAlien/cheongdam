@@ -9,7 +9,7 @@
 
 ## 0. 설계 원칙
 
-1. **쓰는 쪽은 테이블마다 하나다.** A는 공고·추출·발송 대기를 쓰고, B는 구독·발송 이력을 쓴다. 상대 쪽 테이블은 읽기만 한다.
+1. **쓰는 쪽은 테이블마다 하나다.** A는 공고·추출을 쓰고, B는 구독·발송 대기·발송 이력을 쓴다. 상대 쪽 테이블은 읽기만 한다.
 2. **API 값과 가공 값을 모두 둔다.** 응답 원문은 `raw` jsonb로 남기고(해시 비교, 재가공), 화면·필터에 쓰는 값은 숫자·날짜 컬럼으로 따로 둔다.
 3. **접수 상태는 저장하지 않는다.** P-01: 조회 시점에 계산한다. 접수 시작·종료일만 저장한다.
 4. **"API에 없음"과 "0"을 구분한다.** 무순위 공고의 특별공급 유형별 세대수는 `NULL`, APT는 `0` 이상이다(P-04). 필터가 `NULL` 공고를 제외·안내하는 기준이다.
@@ -25,7 +25,7 @@
 | 버전 | `notice_version`, `notice_change` | A | P-08, P-11 |
 | 추출 | `extraction_run`, `extracted_item`, `item_evidence` | A | DATA 2장, P-05, P-06, P-13 |
 | 알림 | `subscription` | B | ALERTS 3장 |
-| 알림 | `alert_outbox`, `alert_outbox_notice` | A 적재, B 상태 갱신 | P-17~P-19 |
+| 알림 | `alert_outbox`, `alert_outbox_notice` | B가 적재하고 상태 갱신(D-28) | P-17~P-19 |
 | 알림 | `alert_log` | B | P-19 중복 방지 |
 
 ```
@@ -258,7 +258,7 @@ CREATE INDEX subscription_email_idx  ON subscription (email) WHERE email IS NOT 
 CREATE INDEX subscription_active_idx ON subscription (status) WHERE status = 'active';
 CREATE INDEX subscription_pending_idx ON subscription (requested_at) WHERE status = 'pending';  -- 7일 후 삭제(E-14)
 
-CREATE TABLE alert_outbox (                               -- 발송 대기. A가 적재, B가 읽고 상태를 갱신
+CREATE TABLE alert_outbox (                               -- 발송 대기. B가 적재하고 읽고 상태를 갱신(D-28)
     id              bigserial PRIMARY KEY,
     subscription_id bigint NOT NULL REFERENCES subscription ON DELETE CASCADE,
     send_date       date NOT NULL,                        -- 발송 예정일(KST)
@@ -294,9 +294,9 @@ CREATE UNIQUE INDEX alert_log_dedup_idx ON alert_log (subscription_id, house_man
     WHERE subscription_id IS NOT NULL;
 ```
 
-- **적재(A, P-17 07:30 직전):** `status='active'` 구독마다 `conditions`를 만족하는 공고를 찾는다. 새 공고는 `first_collected_at > 직전 발송` + 접수 예정·접수 중(P-18), 정정은 `last_changed_at > 직전 발송` + `contract_end`가 지나지 않음. `alert_log`에 있는 (공고, 버전, 종류)는 뺀다. 남은 게 있으면 `alert_outbox` 한 행과 `alert_outbox_notice` 여러 행을 한 트랜잭션으로 넣는다.
+- **적재(B, P-17 07:30 직전):** `status='active'` 구독마다 `conditions`를 만족하는 공고를 찾는다. 새 공고는 `first_collected_at > 직전 발송` + 접수 예정·접수 중(P-18), 정정은 `last_changed_at > 직전 발송` + `contract_end`가 지나지 않음. `alert_log`에 있는 (공고, 버전, 종류)는 뺀다. 남은 게 있으면 `alert_outbox` 한 행과 `alert_outbox_notice` 여러 행을 한 트랜잭션으로 넣는다.
 - **발송(B):** `pending`을 읽어 렌더링·발송하고, 성공하면 `alert_log` 행을 넣고 `status='sent'`로 바꾼다. 둘을 한 트랜잭션으로 묶는다.
-- **필터 조건 매칭:** 키와 의미는 8장 표를 따른다. A가 Python으로 구현하고, B의 목록 쿼리와 결과가 같은지 검수 시나리오 #2~#5와 #19로 확인한다.
+- **필터 조건 매칭:** 키와 의미는 8장 표를 따른다. B가 목록 API와 같은 `NoticeFilter`·`NoticeSpecifications`로 해석한다. 구독 조건과 화면 필터가 같은 결과를 내는지는 검수 시나리오 #2~#5와 #19로 확인한다.
 - **개인정보 파기(P-09):**
   - 해지: `unsubscribed_at` 기록 후, 그 이메일의 모든 구독이 `pending`·`active`가 아니면 `email = NULL`로 지운다. 해지 메일(M-04)은 지우기 전에 보낸다.
   - 미확인 7일: `pending`이고 `requested_at`이 7일 지난 행은 삭제(E-14).

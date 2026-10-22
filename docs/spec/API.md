@@ -331,7 +331,7 @@
 |---|---|---|
 | `/notices/{no}` (화면 URL) | `index.html`에 공고별 `<title>`, 설명, OG 태그를 넣어 돌려준다. 본문은 React가 그린다 | PRD 8.1. 공유 미리보기 |
 | `/api/actuator/health` | 헬스 체크. 외부에 노출하는 actuator는 이것 하나 | 골격 PR |
-| 발송 대기 → 메일 | 하루 한 번 `alert_outbox`를 읽어 M-02, M-03 렌더링·발송 | [ALERTS.md 4장](ALERTS.md#4-알림-정책) |
+| 알림 매칭·발송 | 하루 한 번 07:30 직전에 구독 조건으로 대상을 찾아 `alert_outbox`에 쌓고(D-28), 읽어 M-02, M-03 렌더링·발송 | [ALERTS.md 4장](ALERTS.md#4-알림-정책) |
 
 - 두 번째 행 때문에 Nginx 설정이 바뀐다. 지금은 `/api/`만 Spring으로 넘기는데, `/notices/*`도 넘겨야 한다(정적 파일 `index.html`이 아니라 Spring이 만든 HTML이 나가야 한다). 배포 설정 PR에서 함께 고친다.
 
