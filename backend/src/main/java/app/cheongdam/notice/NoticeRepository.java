@@ -1,5 +1,6 @@
 package app.cheongdam.notice;
 
+import app.cheongdam.common.ClockConfig;
 import app.cheongdam.notice.NoticeListResponse.Item;
 import app.cheongdam.notice.NoticeListResponse.LastCrawl;
 import app.cheongdam.notice.NoticeListResponse.Relaxation;
@@ -214,7 +215,7 @@ class NoticeRepository {
 		}
 		OffsetDateTime at = finished.get(0);
 		boolean stale = Duration.between(at.toInstant(), clock.instant()).compareTo(Duration.ofHours(24)) > 0;
-		return new LastCrawl(at.withOffsetSameInstant(clock.getZone().getRules().getOffset(at.toInstant())), stale);
+		return new LastCrawl(ClockConfig.kst(at), stale);
 	}
 
 	// ---- WHERE ----
