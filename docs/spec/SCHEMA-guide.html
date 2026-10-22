@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>청담 DB 스키마 가이드</title>
+<style>
+:root{
+  --bg:#fafaf8;--panel:#fff;--ink:#1c1c1a;--mute:#6b6b66;--line:#e4e3de;
+  --a:#2f6fd0;--a-bg:#e8f0fc;--b:#1f8a5b;--b-bg:#e3f4ec;--ab:#b9770e;--ab-bg:#fbefd9;
+  --r:#6a5acd;--w:#d6452d;--code:#f1f0ec;--hi:#fff3b0;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161614;--panel:#1f1f1c;--ink:#ecebe6;--mute:#9a9992;--line:#34332f;
+  --a:#7aa7f0;--a-bg:#1b2a44;--b:#5cc596;--b-bg:#14301f;--ab:#e5a944;--ab-bg:#3a2d12;
+  --r:#a79bf2;--w:#ff8a74;--code:#2a2926;--hi:#5a4d10;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 -apple-system,"Apple SD Gothic Neo","Pretendard",sans-serif}
+header{padding:28px 16px 8px;max-width:1080px;margin:0 auto}
+h1{margin:0 0 4px;font-size:26px}
+header p{margin:0;color:var(--mute)}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav div{max-width:1080px;margin:0 auto;padding:8px 16px;display:flex;gap:6px;overflow-x:auto}
+nav button{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer;font:inherit;white-space:nowrap}
+nav button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+main{max-width:1080px;margin:0 auto;padding:20px 16px 80px}
+section{display:none}section.on{display:block}
+h2{font-size:20px;margin:28px 0 8px}h3{font-size:16px;margin:0}
+.lead{color:var(--mute);margin:0 0 16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 16px}
+.badge{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+.A{background:var(--a-bg);color:var(--a)}.B{background:var(--b-bg);color:var(--b)}.AB{background:var(--ab-bg);color:var(--ab)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-top:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:600;font-size:12px;border-top:0}
+td.n{white-space:nowrap;font-weight:600}
+td.ty{color:var(--mute);font-size:12px;white-space:nowrap}
+.tw{overflow-x:auto}
+.t{border-bottom:1.5px dotted var(--ab);cursor:help;position:relative}
+.t:hover::after,.t:focus::after{content:attr(data-d);position:absolute;left:0;top:1.6em;z-index:20;width:max-content;max-width:260px;background:var(--ink);color:var(--bg);padding:8px 10px;border-radius:8px;font-size:13px;font-weight:400;line-height:1.5;white-space:normal;box-shadow:0 4px 14px #0003}
+details{margin:0 0 12px}
+summary{cursor:pointer;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+summary .row::before{content:"▸";color:var(--mute)}
+details[open] summary .row::before{content:"▾"}
+.sub{color:var(--mute);margin:6px 0 10px;font-size:14px}
+/* overview map */
+.areas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.area{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel)}
+.area h4{margin:0 0 8px;font-size:14px}
+.tb{display:block;width:100%;text-align:left;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 9px;margin:0 0 6px;font:13px/1.4 ui-monospace,Menlo,monospace;cursor:default;position:relative}
+.tb small{display:block;font:12px/1.3 -apple-system,"Apple SD Gothic Neo",sans-serif;color:var(--mute)}
+.tb.A{border-color:var(--a)}.tb.B{border-color:var(--b)}.tb.AB{border-color:var(--ab)}
+.tb.dim{opacity:.28}
+.tb.r{box-shadow:0 0 0 3px var(--r);}
+.tb.w{box-shadow:0 0 0 3px var(--w);}
+.tb .m{position:absolute;right:7px;top:6px;font:700 11px sans-serif;padding:0 6px;border-radius:6px;color:#fff}
+.tb.r .m{background:var(--r)}.tb.w .m{background:var(--w)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin:0 0 12px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.rel{font:13px/1.8 ui-monospace,Menlo,monospace;white-space:pre;overflow-x:auto;background:var(--code);padding:12px;border-radius:8px}
+/* scenario */
+.sc{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.sc button{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:8px;cursor:pointer;font:inherit;font-size:14px;text-align:left}
+.sc button[aria-pressed="true"]{border-color:var(--ink);background:var(--hi);color:#1c1c1a}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+.steps li{counter-increment:s;position:relative;padding:8px 0 8px 38px;border-top:1px solid var(--line)}
+.steps li::before{content:counter(s);position:absolute;left:0;top:9px;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--bg);text-align:center;font-weight:700;font-size:13px;line-height:26px}
+.ex{background:var(--code);border-radius:6px;padding:4px 8px;font-size:13px;display:block;margin-top:4px;white-space:pre-wrap}
+.gl{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.gl div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.gl b{display:block}
+.note{border-left:4px solid var(--ab);background:var(--ab-bg);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0;font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>청담 DB 스키마 가이드</h1>
+  <p>근거: <code>V1__init.sql</code> · <code>docs/spec/SCHEMA.md</code> · <code>dev-seed.sql</code>. 점선 밑줄 단어는 마우스를 올리거나 탭하면 청약 용어 설명이 나와요.</p>
+</header>
+<nav><div role="tablist" id="tabs"></div></nav>
+<main>
+
+<!-- 1 ============ 전체 구조 -->
+<section id="s-map">
+  <h2>13개 테이블, 5개 영역</h2>
+  <p class="lead">청담은 <b>A(Python)</b>가 <span class="t" data-d="국토부·한국부동산원이 운영하는 청약 신청·공고 공식 사이트">청약홈</span> 데이터를 모으고 PDF를 읽어 DB에 쓰고, <b>B(Spring)</b>가 그것을 화면·메일로 내보내요. 둘은 <b>DB로만</b> 대화해요. 그래서 "테이블마다 쓰는 쪽이 한 명"이 핵심 규칙이에요.</p>
+  <div class="legend"><span><i style="background:var(--a)"></i>A(Python)가 씀</span><span><i style="background:var(--b)"></i>B(Spring)가 씀</span><span><i style="background:var(--ab)"></i>A가 적재 + B가 상태 갱신</span></div>
+  <div class="areas" id="map"></div>
+
+  <h2>테이블 관계</h2>
+  <p class="lead"><code>1─N</code>은 "하나에 여러 개"예요. 예: 공고 1개에 주택형 여러 개.</p>
+  <div class="rel">notice ─1──N─ notice_schedule      (접수·당첨·계약 일정)
+       ─1──N─ notice_unit          (주택형: 59㎡, 84㎡ …)
+       ─1──N─ notice_version ─1──N─ notice_change   (정정 이력)
+                             ─1──1─ extraction_run ─1──N─ extracted_item ─1──N─ item_evidence
+                                    (버전마다 한 번 추출)    (요건 한 줄)            (원문 근거)
+
+subscription ─1──N─ alert_outbox ─1──N─ alert_outbox_notice ──▶ (notice, version)
+             ─1──N─ alert_log                                       발송 이력
+
+crawl_run  (독립: 수집 실행 일지)</div>
+
+  <h2>이 설계를 읽는 6가지 열쇠</h2>
+  <div class="card"><ol style="margin:0;padding-left:20px">
+    <li><b>접수 "상태"는 저장하지 않아요.</b> 접수 시작·종료일만 저장하고, 접수 예정/접수 중/마감은 조회할 때 오늘 날짜와 비교해 계산해요. 저장해 두면 자정마다 갱신해야 해서요.</li>
+    <li><b>"정보 없음(NULL)"과 "0"은 달라요.</b> 무순위 공고는 청약홈이 특별공급 유형별 세대수를 안 줘서 <code>NULL</code>, 일반 분양에서 신혼부부 몫이 없으면 <code>0</code>이에요. 필터가 NULL 공고를 제외하고 안내 배너를 띄우는 기준이에요.</li>
+    <li><b>정정은 덮어쓰지 않고 버전을 쌓아요.</b> <code>notice</code>는 항상 최신 값, 과거는 <code>notice_version</code>·<code>notice_change</code>에 남아요.</li>
+    <li><b>원문(<code>raw</code>)을 같이 보관해요.</b> API 응답을 통째로 jsonb로 저장해 두면 해시 비교로 정정을 감지하고, 가공 규칙이 바뀌어도 다시 계산할 수 있어요.</li>
+    <li><b>AI가 뽑은 요건에는 항상 근거가 붙어요.</b> <code>item_evidence</code>에 쪽 번호와 인용문이 있고, 그 문구가 실제 원문에 있는지 검증한 결과(<code>verified</code>)가 저장돼요.</li>
+    <li><b>개인정보는 <code>subscription.email</code> 하나뿐이에요.</b> 해지·미확인이면 바로 지워요.</li>
+  </ol></div>
+</section>
+
+<!-- 2 ============ 테이블 상세 -->
+<section id="s-tables">
+  <p class="lead">모든 예시는 개발 시드 공고 <b>DEV001 「○○자이 더 센트럴」</b>(경기 수원, 민영, 812세대, 정정 1회)을 따라가요. 날짜는 시드를 돌린 날(2026-10-22) 기준이에요. 표를 펼쳐서 보세요.</p>
+  <div style="display:flex;gap:8px;margin:0 0 12px"><button class="pill" onclick="document.querySelectorAll('#tables details').forEach(d=>d.open=true)">모두 펼치기</button><button class="pill" onclick="document.querySelectorAll('#tables details').forEach(d=>d.open=false)">모두 접기</button></div>
+  <div id="tables"></div>
+</section>
+
+<!-- 3 ============ 동작 흐름 -->
+<section id="s-flow">
+  <p class="lead">시나리오를 고르면 그 순간 <b>읽는 테이블(보라)</b>과 <b>쓰는 테이블(빨강)</b>이 지도에 표시돼요.</p>
+  <div class="sc" id="scBtns"></div>
+  <div class="areas" id="flowMap"></div>
+  <div class="card" style="margin-top:16px"><h3 id="scTitle"></h3><p class="sub" id="scWhen"></p><ol class="steps" id="scSteps"></ol></div>
+
+  <h2>하루 타임라인</h2>
+  <div class="card tw"><table>
+    <tr><th>시각(KST)</th><th>누가</th><th>무엇을</th><th>주요 테이블</th></tr>
+    <tr><td class="n">06:00 · 18:00</td><td><span class="badge A">A</span></td><td>청약홈 수집 → 신규·정정 감지 → PDF 추출 큐 등록</td><td><code>crawl_run</code> <code>notice*</code> <code>extraction_run</code></td></tr>
+    <tr><td class="n">수시</td><td><span class="badge A">A</span></td><td>추출 대기열(<code>next_attempt_at</code>) 처리, 실패 시 1h·6h 뒤 재시도</td><td><code>extraction_run</code> <code>extracted_item</code> <code>item_evidence</code></td></tr>
+    <tr><td class="n">07:30 직전</td><td><span class="badge A">A</span></td><td>구독 조건에 맞는 새 공고·정정 골라 발송 대기 적재</td><td><code>alert_outbox</code> <code>alert_outbox_notice</code></td></tr>
+    <tr><td class="n">07:30</td><td><span class="badge B">B</span></td><td>대기분 메일 발송 → 이력 기록</td><td><code>alert_outbox</code> <code>alert_log</code> <code>subscription</code></td></tr>
+    <tr><td class="n">하루 1회</td><td><span class="badge B">B</span></td><td>개인정보 파기: 해지 구독 이메일 삭제, 7일 지난 미확인 구독 삭제</td><td><code>subscription</code></td></tr>
+    <tr><td class="n">사용자가 열 때</td><td><span class="badge B">B</span></td><td>목록·상세 조회, 구독 신청·확인·해지</td><td>거의 전부 읽기, 구독만 쓰기</td></tr>
+  </table></div>
+</section>
+
+<!-- 4 ============ 용어집 -->
+<section id="s-gl">
+  <p class="lead">청약을 처음 접하는 입장에서 이 스키마에 나오는 용어를 모았어요. 일반적인 설명이라 공고마다 다를 수 있어요. (출처: 「주택공급에 관한 규칙」 등 · 법령 검수 전 초안)</p>
+  <h2>청약 용어</h2><div class="gl" id="glossary"></div>
+  <h2>DB 용어</h2><div class="gl" id="dbgl"></div>
+</section>
+</main>
+
+<script>
+/* ---------- 청약 용어 ---------- */
+const TERMS = {
+ "청약홈":"국토부·한국부동산원이 운영하는 청약 신청·공고 공식 사이트. 청담의 데이터 출처예요.",
+ "청약":"새로 짓는 아파트를 분양받기 위해 신청하는 것. 추첨·점수로 당첨자를 정해요.",
+ "분양":"새로 지은(지을) 집을 처음으로 파는 것.",
+ "입주자모집공고":"분양 안내문. 일정·자격·가격·유의사항이 담긴 공고(PDF). 줄여서 '공고'.",
+ "입주자모집공고일":"공고가 게시된 날. 나이·거주기간·무주택 여부를 판단하는 기준일인 경우가 많아요.",
+ "특별공급":"신혼부부·다자녀 등 배려가 필요한 사람에게 일반공급과 따로 먼저 주는 물량.",
+ "일반공급":"특별공급을 뺀 나머지 물량. 1순위·2순위 순서로 접수.",
+ "1순위":"청약통장 가입 기간·납입 횟수 등 조건을 갖춘 사람이 먼저 신청하는 순서.",
+ "2순위":"1순위 조건에 못 미치는 사람이 그다음에 신청하는 순서.",
+ "무순위":"1·2순위 접수 뒤 남거나 계약 포기로 생긴 물량을 순위 없이 다시 공급하는 것.",
+ "불법행위 재공급":"불법 전매 등으로 계약이 취소된 물량을 다시 공급하는 것.",
+ "재공급":"불법 전매 등으로 계약이 취소된 물량을 다시 공급하는 것.",
+ "민영주택":"민간 건설사가 짓는 주택. 가점·추첨 방식 등 국민주택과 신청 조건이 달라요.",
+ "국민주택":"국가·지자체·LH 등이 짓거나 주택도시기금 지원을 받는 주택. 민영과 신청 조건이 달라요.",
+ "민영":"민간 건설사가 짓는 주택(민영주택).",
+ "국민":"국가·지자체·LH 등이 짓거나 주택도시기금 지원을 받는 주택(국민주택).",
+ "전용면적":"집 안에서 혼자 쓰는 면적(방·거실·주방·화장실). '84㎡'가 흔한 기준.",
+ "공급면적":"전용면적에 계단·복도 등 공용 면적 일부를 더한 면적.",
+ "주택형":"같은 단지 안의 평형·구조 타입. 예: 59㎡A, 84㎡B.",
+ "분양가":"분양받을 때 정하는 집값. 청약홈은 주택형별 '최고 분양가'를 줘요.",
+ "정정":"이미 올린 공고의 내용(일정 등)을 고쳐 다시 게시하는 것.",
+ "당첨자 발표":"청약 결과(당첨자)를 알리는 날.",
+ "계약":"당첨자가 실제로 분양 계약을 맺는 기간.",
+ "계약금":"계약할 때 내는 돈(보통 분양가의 10%).",
+ "중도금":"계약 후 입주 전까지 나눠 내는 돈.",
+ "잔금":"입주할 때 내는 나머지 돈.",
+ "입주지정일":"당첨자가 입주(잔금 납부)해야 하는 기한.",
+ "재당첨 제한":"당첨된 사람이 일정 기간 다른 분양에 또 당첨될 수 없게 하는 제한.",
+ "전매제한":"당첨된 분양권을 일정 기간 팔 수 없게 하는 제한.",
+ "전매":"분양받은 권리(분양권)를 다른 사람에게 파는 것.",
+ "실거주 의무":"당첨된 집에 일정 기간 직접 들어가 살아야 하는 의무.",
+ "부적격 당첨":"자격 요건을 못 갖춘 채 당첨된 것. 취소되고 일정 기간 청약이 제한될 수 있어요.",
+ "가점제":"무주택 기간·부양가족 수·통장 가입 기간을 점수로 매겨 높은 순으로 뽑는 방식.",
+ "신혼부부":"혼인 기간 7년 이내 등 요건의 부부. 신혼부부 특별공급 대상.",
+ "생애최초":"세대 구성원 모두 주택을 소유해 본 적 없는 사람을 위한 특별공급.",
+ "다자녀":"미성년 자녀가 여러 명인 가구를 위한 특별공급.",
+ "신생아":"일정 기간 안에 출산·입양한 자녀가 있는 가구를 위한 특별공급.",
+ "노부모부양":"만 65세 이상 직계존속을 일정 기간 모신 사람을 위한 특별공급.",
+ "청년":"일정 연령대 미혼 청년을 위한 특별공급(주로 공공분양).",
+ "기관추천":"국가유공자·장애인 등 관계 기관이 추천한 사람을 위한 특별공급.",
+ "무주택세대구성원":"세대주와 세대원 모두 주택을 갖고 있지 않은 세대의 구성원.",
+ "청약통장":"청약에 필요한 저축 통장. 현재는 주택청약종합저축.",
+ "해당지역":"공급 지역에 일정 기간 이상 거주한 사람. 이들에게 먼저 공급해요.",
+ "기타경기":"해당지역이 서울·인천 등일 때, 같은 수도권인 경기도 거주자 구분.",
+ "기타지역":"해당지역·기타경기가 아닌 지역 거주자 구분.",
+ "규제지역":"투기과열지구·조정대상지역 등 정부 규제를 받는 지역(대출·전매 등이 달라짐).",
+ "시행사":"집을 짓는 사업을 주관하는 회사(사업주체).",
+ "사업주체":"집을 짓고 분양하는 주체(시행사·LH 등).",
+ "입주예정":"실제 입주가 시작될 예정 연·월.",
+ "세대":"한 집(가구) 단위. '812세대' = 총 812채 규모.",
+ "소득":"신혼·생애최초 등은 도시근로자 월평균소득의 일정 비율 이하여야 해요.",
+};
+const DBTERMS = {
+ "PK":"기본키. 행 하나를 유일하게 가리키는 값(들).",
+ "FK":"외래키. 다른 테이블의 PK를 가리켜 둘을 연결.",
+ "NULL":"값이 없음(모름). 0이나 빈 문자열과 달라요.",
+ "jsonb":"JSON을 검색·인덱스가 가능한 형태로 저장하는 PostgreSQL 타입.",
+ "해시":"내용을 짧은 지문 값으로 바꾼 것. 지문이 다르면 내용이 바뀐 것.",
+ "인덱스":"조회를 빠르게 하는 색인.",
+ "CASCADE":"부모 행이 지워지면 자식 행도 함께 지우는 규칙.",
+ "outbox":"'보낼 것' 목록 테이블. 적재하는 쪽과 발송하는 쪽을 분리해 안전하게 보내는 패턴.",
+ "idempotent":"여러 번 실행해도 결과가 같음. 중복 발송 방지에 필요.",
+ "trigram":"문자열을 3글자씩 쪼개 부분 일치 검색(단지명)을 빠르게 하는 방식.",
+};
+const termRe = new RegExp(Object.keys(TERMS).sort((a,b)=>b.length-a.length).map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'),'g');
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function tip(s, seen){ // 카드 안에서 용어는 처음 한 번만 표시
+  return esc(s).replace(termRe, m=>{ if(seen.has(m)) return m; seen.add(m);
+    return `<span class="t" tabindex="0" data-d="${esc(TERMS[m]).replace(/"/g,'&quot;')}">${m}</span>`;});
+}
+
+/* ---------- 테이블 정의 ---------- */
+const AREAS = [
+ {name:"수집", tabs:["crawl_run"]},
+ {name:"공고", tabs:["notice","notice_schedule","notice_unit"]},
+ {name:"정정 이력", tabs:["notice_version","notice_change"]},
+ {name:"PDF 추출", tabs:["extraction_run","extracted_item","item_evidence"]},
+ {name:"알림", tabs:["subscription","alert_outbox","alert_outbox_notice","alert_log"]},
+];
+const T = {
+crawl_run:{who:"A",brief:"수집 배치 실행 일지",
+ role:"수집 프로그램이 한 번 돌 때마다 한 줄이 쌓여요. 두 가지로 쓰여요. ① 마지막 성공(success)이 24시간을 넘으면 목록 화면에 '업데이트가 늦어지고 있어요' 경고(P-15). ② 알림 메일은 수집이 success로 끝난 뒤에만 만들어요(P-17).",
+ cols:[
+ ["id","bigserial","실행 1회의 번호","42"],
+ ["started_at","timestamptz","수집 시작 시각","2026-10-22 06:00"],
+ ["finished_at","timestamptz","끝난 시각. 진행 중이면 NULL. 경고 판단은 이 값으로 해요","2026-10-22 06:07"],
+ ["status","text","running(진행) / success / failed","success"],
+ ["notice_seen","int","이번에 API로 훑은 공고 수","215"],
+ ["notice_new","int","처음 본 공고 수","2"],
+ ["notice_changed","int","내용이 바뀐(정정) 공고 수","1"],
+ ["error","text","실패 사유","(성공이면 비어 있음)"]]},
+notice:{who:"A",brief:"공고 한 건의 최신 상태 (중심 테이블)",
+ role:"청약홈 공고 1건 = 1행. 목록 카드와 상세 화면 상단이 거의 이 테이블에서 나와요. 일반 분양(APT)과 무순위·재공급(remndr)의 번호 대역이 겹치지 않아 한 테이블에 같이 둬요.",
+ groups:[
+ ["식별·유형",[
+ ["house_manage_no","text PK","공고 번호. 청약홈이 붙인 ID라 그대로 PK","DEV001 (실제는 2026000437 같은 번호)"],
+ ["notice_type","text","general 일반 / no_rank 무순위 / resupply 불법행위 재공급. 배지 표시 기준","general"],
+ ["source_api","text","어느 API에서 왔는지 (apt / remndr)","apt"]]],
+ ["기본 정보",[
+ ["name","text","단지 이름","○○자이 더 센트럴"],
+ ["region","text","시·도 이름. 지역 필터와 구독 조건이 이 값과 비교돼요","경기"],
+ ["region_code","text","청약홈의 지역 코드(API 값 그대로)","(API 값)"],
+ ["address","text","공급 위치","경기도 수원시 장안구 ○○동 123"],
+ ["house_kind","text","private 민영 / public 국민. 무순위는 NULL","private"],
+ ["developer","text","사업주체(시행사)","(API의 BSNS_MBY_NM)"],
+ ["total_households","int","총 공급 세대수","812"],
+ ["move_in_ym","text","입주예정 연월. 6자리 숫자만 허용","202912 → '2029년 12월'"]]],
+ ["일정",[
+ ["announced_on","date","입주자모집공고일","2026-10-19"],
+ ["rcept_start / rcept_end","date","접수 전체 기간의 시작·끝. 둘 다 NULL이면 '일정 확인 필요'. 접수 상태 계산의 재료","10-21 ~ 10-24"],
+ ["winner_on","date","당첨자 발표일","2026-10-31"],
+ ["contract_start / contract_end","date","계약 기간. 정정 알림은 contract_end가 지나면 중단","11-08 ~ 11-10"]]],
+ ["링크·연락처",[
+ ["notice_url","text","청약홈 공고 상세 페이지 (PDF 직링크 아님)","https://www.applyhome.co.kr/…"],
+ ["homepage_url / phone","text","분양 홈페이지 / 모델하우스 전화","(있으면)"]]],
+ ["규제",[
+ ["is_regulated","boolean","규제지역 관련 플래그. 의미가 확실치 않아(D-03) 화면에 쓰지 않아요. 무순위는 NULL","NULL"]]],
+ ["원문·변경 감지",[
+ ["raw","jsonb","API 응답 원문(공고 부분)","{ \"HOUSE_NM\": \"…\", … }"],
+ ["raw_hash","text","raw + 주택형 raw를 합쳐 만든 지문. 다음 수집 때 지문이 다르면 정정으로 판단","a3f9…"]]],
+ ["버전·상태",[
+ ["current_version","int","최신 버전 번호 (notice_version의 최대값)","2"],
+ ["first_collected_at","timestamptz","청담이 처음 수집한 시각. '새 공고' 알림 판단 기준","10-20 06:00"],
+ ["last_checked_at","timestamptz","마지막으로 API를 다시 조회한 시각. 상세 헤더 '마지막 확인'","10-22 06:00"],
+ ["last_changed_at","timestamptz","정정을 감지한 시각. 목록의 '정정' 배지는 이후 7일간 표시","10-21 06:00"],
+ ["removed_at","timestamptz","청약홈에서 사라진 시각. 바로 지우지 않고 '내려간 공고'로 표시","NULL"],
+ ["summary_status","text","PDF 정리 상태: pending 준비 중 / done 완료 / partial 일부 / failed 실패. 최신 extraction_run에서 파생한 캐시","done"],
+ ["created_at / updated_at","timestamptz","행 생성·수정 시각","—"]]],
+ ]},
+notice_schedule:{who:"A",brief:"단계별 접수·발표·계약 일정",
+ role:"notice의 rcept_start/end는 '전체 범위' 한 쌍뿐이라 세부가 안 보여요. 이 테이블은 특별공급·1순위·2순위·당첨자 발표·계약을 한 줄씩 풀어 둬요. 상세 화면의 일정 타임라인과 '캘린더에 추가'의 원천이에요. 1순위는 지역별로 날짜가 다를 수 있어 area가 있어요.",
+ cols:[
+ ["house_manage_no","text FK","어느 공고의 일정인지 (공고가 지워지면 함께 삭제)","DEV001"],
+ ["stage","text","special 특별공급 / rank1 / rank2 / no_rank 무순위 / general 재공급 일반 / winner 발표 / contract 계약","rank1"],
+ ["area","text","all 전체 / local 해당지역 / gyeonggi 기타경기 / other 기타지역","gyeonggi"],
+ ["start_on / end_on","date","그 단계의 시작·끝. 당첨자 발표는 시작=끝","10-22 ~ 10-22"]],
+ example:"PK = (공고번호, stage, area). DEV001은 이렇게 일곱 줄이 있어요:\n특별공급 all 10-19 │ 1순위 local 10-21 │ 1순위 gyeonggi 10-22 │ 2순위 all 10-23~24 │ 당첨자 발표 10-31 │ 계약 11-08~10"},
+notice_unit:{who:"A",brief:"주택형(타입)별 세대수·분양가",
+ role:"한 단지는 59㎡, 84㎡ 같은 여러 타입으로 나뉘어요. 타입마다 한 줄이에요. 분양가·면적 필터, 특별공급 유형별 필터가 이 테이블을 봐요. 카드의 '3.2억~5.2억' 같은 범위는 이 테이블을 집계해 계산하고 컬럼으로는 두지 않아요.",
+ cols:[
+ ["house_manage_no, model_no","text PK","공고 번호 + 타입 번호","DEV001 / 02"],
+ ["house_ty","text","타입 이름(공백 제거)","084.8860A"],
+ ["exclusive_area","numeric","전용면적을 숫자로. 면적 필터(≤60 / 60~85 / >85)용","84.886 → '84.89㎡ A'"],
+ ["supply_area","numeric","공급면적. 무순위는 API에 없어 NULL","112.3"],
+ ["top_price_man","int","최고 분양가(만원 단위). 0·빈 값은 NULL","52340 → '5억 2,340만 원'"],
+ ["general_count","int","일반공급 세대수","210"],
+ ["special_count","int","특별공급 세대수 합","282"],
+ ["sp_newlywed","int","신혼부부 특별공급 세대수","100"],
+ ["sp_first_home","int","생애최초","70"],
+ ["sp_multi_child","int","다자녀","40"],
+ ["sp_newborn","int","신생아","20"],
+ ["sp_elderly","int","노부모부양","20"],
+ ["sp_youth","int","청년","0 (이 단지엔 없음)"],
+ ["sp_institution","int","기관추천","32"],
+ ["sp_etc","int","기타 특별공급","0"],
+ ["raw","jsonb","주택형 API 원문","{…}"]],
+ example:"sp_* 컬럼은 일반 분양에서는 0 이상, 무순위·재공급에서는 NULL이에요. DEV004(무순위)는 전부 NULL, DEV001의 sp_youth=0은 '없다'는 뜻이에요. 합계 확인: 100+70+40+20+20+0+32+0 = 282 = special_count."},
+notice_version:{who:"A",brief:"공고 버전 (정정될 때마다 +1)",
+ role:"정정이 감지되면 새 행이 하나 생겨요. 감지 방법은 두 가지예요. API 값의 지문(api_hash) 비교, PDF 파일의 지문(pdf_hash) 비교. 이 테이블은 각 버전의 PDF 파일 위치와 상태도 관리해요.",
+ cols:[
+ ["house_manage_no, version","PK","공고 + 버전 번호(1부터)","DEV001 / 2"],
+ ["detected_at","timestamptz","이 버전을 처음 발견한 시각","10-21 06:00"],
+ ["api_hash","text","그 시점 notice.raw_hash 스냅샷","a3f9…"],
+ ["pdf_hash","text","PDF 파일 지문. PDF가 없으면 NULL","7c21…"],
+ ["pdf_file_name","text","내려받을 때의 파일명. '(2026.10.19.정정)'이 붙으면 정정 보조 신호","공고문(2026.10.19.정정).pdf"],
+ ["pdf_path","text","저장 위치(루트 제외 상대경로)","DEV001/2.pdf"],
+ ["pdf_status","text","pending 대기 / ok 정상 / none PDF 링크 없음 / not_pdf PDF 아님 / failed 실패","ok"],
+ ["change_source","text","정정이 어디서 보였나: api / pdf / both. 버전1은 NULL","pdf"]]},
+notice_change:{who:"A",brief:"바뀐 항목의 '이전 값 → 새 값'",
+ role:"상세 화면 블록 D(정정 이력)와 정정 알림 메일(M-03)에 나오는 '무엇이 바뀌었는지' 목록이에요. 못 뽑았다면 이 테이블에 행 없이 notice_version만 만들고 '공고문이 새로 올라왔어요'라고 안내해요.",
+ cols:[
+ ["id","bigserial","행 번호","1"],
+ ["house_manage_no, version","FK","바뀐 뒤의 버전. notice_version을 가리켜요","DEV001 / 2"],
+ ["field","text","바뀐 항목 이름","1순위 접수일"],
+ ["before_value","text","이전 값","2026-10-21"],
+ ["after_value","text","새 값","2026-10-23"],
+ ["source","text","api_diff API 비교로 발견 / pdf_notice_box PDF의 '정정 안내 상자'에서 읽음","pdf_notice_box"]]},
+extraction_run:{who:"A",brief:"버전별 PDF 정리 작업 1건 (작업 대기열 겸 비용 기록)",
+ role:"공고 버전마다 한 번 AI로 PDF를 읽고 요건을 뽑아요. 이 행은 작업 대기열이면서(status·next_attempt_at) 모델·토큰·비용 기록이에요. 실패하면 1시간 뒤, 6시간 뒤에 재시도하고, 3번 실패하면 '실패' 확정이에요.",
+ cols:[
+ ["house_manage_no, version","PK/FK","어느 공고의 몇 번째 버전인지","DEV001 / 2"],
+ ["status","text","pending 대기 / running / done / partial 일부 / failed","done"],
+ ["attempt","int","시도 횟수(최대 3)","1"],
+ ["next_attempt_at","timestamptz","다음 시도 시각. 대기열 조회에 쓰는 인덱스가 걸려 있어요","(done이면 NULL)"],
+ ["model","text","사용한 AI 모델","claude-opus-5-5"],
+ ["prompt_version","text","지시문 버전. 품질이 바뀌면 원인 추적용","v3"],
+ ["page_count","int","PDF 쪽 수","58"],
+ ["input_tokens / output_tokens","int","사용 토큰","—"],
+ ["cost_usd","numeric","이 추출의 비용(달러)","0.4210"],
+ ["needs_review_ratio","numeric","'확인 필요'인 항목 비율. 0.30을 넘으면 통째로 실패 처리(P-05)","0.143"],
+ ["error","text","실패 사유","—"],
+ ["started_at / finished_at","timestamptz","실행 시작·종료","—"]]},
+extracted_item:{who:"A",brief:"AI가 PDF에서 뽑은 요건 한 줄",
+ role:"상세 화면 블록 B('당첨되면 이렇게 돼요')와 블록 C('공급 유형별 조건표')의 내용이에요. 공고 버전마다 새로 뽑으므로 항목도 버전별로 따로 있어요. 분류(category)가 6이면 어떤 제약인지 constraint_code가 반드시 있어야 해요(DB CHECK).",
+ cols:[
+ ["id","bigserial","항목 번호","101"],
+ ["house_manage_no, version","FK","어느 추출 작업의 결과인지","DEV001 / 2"],
+ ["category","smallint","1 공통 자격 / 2 청약통장 / 3 일반공급 순위 / 4 특별공급 유형별 / 5 소득·자산 / 6 당첨 후 제약","6"],
+ ["constraint_code","text","분류 6 전용 세부 코드. rewin_limit 재당첨 제한 / apply_restriction 1순위·가점제 제한 / resale_limit 전매제한 / ineligible_limit 부적격 당첨 제한 / duplicate_apply 중복 청약 / residence_duty 실거주 의무 / payment 계약금·중도금·잔금","resale_limit"],
+ ["targets","text[]","적용 대상. '전체' 또는 공급 유형 코드(general_1st, newlywed, first_home …)","{newlywed}"],
+ ["requirement","text","쉬운 말 요건 문장(80자 안팎). 숫자·기간은 원문 그대로","혼인 기간이 7년 이내여야 해요"],
+ ["criteria_table","jsonb","소득 기준 금액표(선택). MVP는 NULL","NULL"],
+ ["is_general_rule","boolean","법령을 옮긴 일반 정의면 true. 블록 C 맨 아래에 접어 둬요","false"],
+ ["status","text","confirmed 확인됨 / needs_review 확인 필요(회색 표시)","needs_review"],
+ ["sort_order","int","화면 순서","2"]],
+ example:"DEV001 v2에는 이런 행들이 있어요 (시드):\n· 분류6 rewin_limit  / 전체      / '당첨일부터 10년간 재당첨이 제한돼요'      / confirmed\n· 분류6 payment      / 전체      / '계약금 10%, 중도금 60%, 잔금 30%(입주지정일)' / confirmed\n· 분류4 -            / newlywed  / '소득이 도시근로자 월평균소득 140% 이하여야 해요' / needs_review (근거 검증 실패)\n· 분류1 -            / 전체      / '세대란 세대주와 세대원 전원을 말해요'    / is_general_rule = true"},
+item_evidence:{who:"A",brief:"요건 문장의 원문 근거 (쪽 번호 + 인용문)",
+ role:"'AI가 지어낸 말이 아니라 원문에 있는 말'임을 보여 주는 장치예요. 화면에서 항목 옆 '근거 칩(p.34 ›)'을 누르면 이 인용문이 뜨고 원문 해당 쪽으로 이동해요. 항목당 1개 이상이에요.",
+ cols:[
+ ["id","bigserial","근거 번호","—"],
+ ["item_id","bigint FK","어느 extracted_item의 근거인지","101"],
+ ["page","int","PDF 쪽 번호","34"],
+ ["quote","text","원문 인용 문구(화면은 300자까지)","당첨된 주택의 입주자로 선정된 날로부터 10년간 다른 분양주택의 입주자로 선정될 수 없습니다."],
+ ["verified","boolean","정규화(공백·전각 차이 제거) 후 그 쪽 원문에 이 문구가 문자열로 있는가","true"]],
+ example:"DEV001의 '소득 140% 이하' 항목은 인용문 '월평균소득 140%'가 12쪽 원문에서 확인되지 않아 verified=false → 항목이 needs_review로 회색 표시되고 조건표 체크박스가 사라져요."},
+subscription:{who:"B",brief:"이메일 알림 구독 (유일한 개인정보)",
+ role:"'경기 신혼부부 특별공급 공고 알려줘' 같은 조건을 이메일에 묶어 저장해요. 회원가입이 없으니 구독 확인 메일의 링크(confirm_token)와 관리·해지 링크(manage_token)가 곧 인증 수단이에요.",
+ cols:[
+ ["id","bigserial","구독 번호","7"],
+ ["email","text","수신 주소(소문자). 해지·미확인·반송 처리 뒤 NULL로 지움","kim@example.com"],
+ ["conditions","jsonb","목록 필터와 같은 형식의 조건. 접수 상태·검색어는 제외","{\"v\":1,\"region\":[\"경기\"],\"supply\":[\"newlywed\"]}"],
+ ["conditions_hash","text","조건을 정렬한 JSON의 지문. 순서만 다른 같은 조건의 중복 저장을 막음","e19b…"],
+ ["status","text","pending 확인 대기 / active 구독 중 / unsubscribed 해지 / suspended 발송 중지(반송·스팸 신고)","active"],
+ ["confirm_token","text unique","메일 확인 링크용 토큰(7일 유효)","—"],
+ ["manage_token","text unique","관리·해지 링크용 토큰","—"],
+ ["consent_at","timestamptz","개인정보 수집·이용 동의 시각","10-20 21:05"],
+ ["requested_at","timestamptz","신청 시각. 미확인이면 7일 뒤 삭제","10-20 21:05"],
+ ["confirmed_at","timestamptz","메일 확인 클릭 시각","10-20 21:07"],
+ ["unsubscribed_at","timestamptz","해지 시각","NULL"],
+ ["last_sent_at","timestamptz","마지막 발송 시각. '직전 발송 이후' 판단 기준","10-21 07:30"]],
+ example:"규칙: 같은 이메일+같은 조건은 중복 불가(pending·active 중), 이메일당 구독은 3개까지. conditions의 키: region(지역), supply(특별공급 유형), price_min/max(분양가), area(le60 / 60to85 / gt85), notice_type, house_kind. 필터 사이는 AND, 한 필터 안의 값들은 OR."},
+alert_outbox:{who:"AB",brief:"오늘 보낼 메일 1통 (발송 대기열)",
+ role:"A가 07:30 직전에 '이 구독자에게 오늘 이 메일을 보내라'를 한 줄로 쌓고, B가 읽어 발송한 뒤 상태를 바꿔요. 두 프로그램이 서로를 직접 부르지 않고 이 대기열로만 주고받는 구조(outbox 패턴)예요. (subscription_id, send_date)가 유니크라 한 구독에 하루 한 통이에요.",
+ cols:[
+ ["id","bigserial","메일 번호","31"],
+ ["subscription_id","bigint FK","받는 구독 (구독이 지워지면 함께 삭제)","7"],
+ ["send_date","date","발송 예정일(KST)","2026-10-23"],
+ ["mail_type","text","new 새 공고 / correction 정정 / combined 둘을 합침(정정이 위)","combined"],
+ ["status","text","pending → sent / failed","pending"],
+ ["attempts","int","시도 횟수. 일시 실패는 1시간 뒤 1회 재시도","0"],
+ ["next_attempt_at / error","","재시도 시각 / 실패 사유","—"],
+ ["created_at / sent_at","timestamptz","적재·발송 시각","—"]]},
+alert_outbox_notice:{who:"AB",brief:"한 통에 담길 공고 목록",
+ role:"메일 1통(alert_outbox)에 어떤 공고들이 들어가는지 적은 명세서예요. 메일을 만들 때 이 목록으로 notice를 읽어 카드를 그려요.",
+ cols:[
+ ["outbox_id","bigint FK","어느 메일에 담기는지","31"],
+ ["house_manage_no, version","FK","어느 공고의 몇 번째 버전인지","DEV001 / 2"],
+ ["kind","text","new 새 공고 / correction 정정","correction"]],
+ example:"예: 메일 31에는 (DEV001 v2, correction)과 (DEV002 v1, new)가 담겨요 → 메일 한 통에 '정정 1건, 새 공고 1건'."},
+alert_log:{who:"B",brief:"발송 이력 (이메일 없음, 중복 방지)",
+ role:"'이 구독자에게 이 공고 이 버전을 이미 알렸다'의 기록이에요. 다음날 적재할 때 이 이력에 있는 건 뺍니다. 이메일이 없어서 구독이 지워져도(subscription_id가 NULL이 돼도) 통계용으로 남겨요.",
+ cols:[
+ ["id","bigserial","이력 번호","—"],
+ ["subscription_id","bigint FK","어느 구독에 보냈는지. 구독 삭제 시 NULL","7"],
+ ["house_manage_no, version","","어느 공고·버전을 알렸는지","DEV001 / 2"],
+ ["kind","text","new / correction","correction"],
+ ["sent_at","timestamptz","발송 시각","2026-10-23 07:30"]],
+ example:"유니크 (구독, 공고, 버전, 종류): 같은 정정(v2)을 두 번 보낼 수 없어요. 다시 정정되어 v3가 되면 새 행으로 다시 보낼 수 있어요."},
+};
+const WHO={A:["A (Python)","A"],B:["B (Spring)","B"],AB:["A 적재 + B 갱신","AB"]};
+
+/* ---------- 지도 렌더 ---------- */
+function mapHTML(){
+  return AREAS.map(a=>`<div class="area"><h4>${a.name}</h4>${a.tabs.map(t=>
+    `<div class="tb ${T[t].who}" data-t="${t}">${t}<small>${T[t].brief}</small></div>`).join('')}</div>`).join('');
+}
+document.getElementById('map').innerHTML = mapHTML();
+document.getElementById('flowMap').innerHTML = mapHTML();
+
+/* ---------- 테이블 카드 ---------- */
+(function(){
+  const out=[];
+  for(const a of AREAS){
+    out.push(`<h2>${a.name}</h2>`);
+    for(const name of a.tabs){
+      const t=T[name], seen=new Set();
+      const rows=(cols)=>cols.map(c=>`<tr><td class="n">${esc(c[0])}</td><td class="ty">${esc(c[1])}</td><td>${tip(c[2],seen)}</td><td>${tip(c[3],seen)}</td></tr>`).join('');
+      let body;
+      if(t.groups){
+        body=t.groups.map(g=>`<tr><td colspan="4" style="background:var(--code);font-weight:700;font-size:12px;color:var(--mute)">${g[0]}</td></tr>${rows(g[1])}`).join('');
+      } else body=rows(t.cols);
+      out.push(`<details class="card" ${name==='notice'?'open':''}><summary><div class="row"><h3><code>${name}</code></h3><span class="badge ${t.who}">쓰는 쪽 ${WHO[t.who][0]}</span><span style="color:var(--mute)">${t.brief}</span></div></summary>
+        <p class="sub">${tip(t.role,seen)}</p>
+        <div class="tw"><table><tr><th>컬럼</th><th>타입</th><th>역할</th><th>예시 (DEV001)</th></tr>${body}</table></div>
+        ${t.example?`<span class="ex">${tip(t.example,seen)}</span>`:''}</details>`);
+    }
+  }
+  document.getElementById('tables').innerHTML=out.join('');
+})();
+
+/* ---------- 시나리오 ---------- */
+const SC=[
+{k:"collect",n:"① 수집",when:"매일 06:00 · 18:00 (A)",
+ rw:{crawl_run:"w",notice:"w",notice_schedule:"w",notice_unit:"w",notice_version:"w"},
+ steps:[
+ ["crawl_run에 새 행을 만들어요.","status='running', started_at=06:00"],
+ ["청약홈 API(일반 분양 + 무순위·재공급)에서 공고와 주택형을 받아요.","이번에 본 공고가 215건 → notice_seen=215"],
+ ["처음 보는 공고면 notice에 넣어요. 접수 시작·종료일은 단계별 날짜를 규칙(P-01)대로 계산해 저장해요.","규칙: 시작 = 특별공급 시작일(없으면 1순위 중 가장 이른 날), 종료 = 2순위 종료일 중 가장 늦은 날. (시드의 DEV001은 단순화해 10-21~10-24로 넣어 둠)"],
+ ["단계별 일정은 notice_schedule, 타입별 정보는 notice_unit에 풀어 넣어요.","1순위 해당지역/기타경기 날짜가 달라 두 행"],
+ ["raw 원문과 raw_hash(지문)도 같이 저장하고, notice_version에 version=1 행을 만들어요. PDF는 아직 받기 전이라 pdf_status='pending'.",""],
+ ["crawl_run을 닫아요.","status='success', notice_new=2"]]},
+{k:"extract",n:"② PDF 정리",when:"수집 뒤 수시 (A)",
+ rw:{notice_version:"w",extraction_run:"w",extracted_item:"w",item_evidence:"w",notice:"w"},
+ steps:[
+ ["PDF를 내려받아 notice_version에 pdf_hash·pdf_path·pdf_status='ok'를 채워요.","청약홈 요청은 초당 1건 이하로 제한"],
+ ["extraction_run(버전당 1건)을 running으로 바꾸고 AI에게 PDF를 읽혀요.","model='claude-opus-5-5', attempt=1"],
+ ["AI가 돌려준 요건을 extracted_item으로 저장해요.","category=6, constraint_code='resale_limit', requirement='전매제한 3년'"],
+ ["각 요건마다 쪽 번호와 인용문을 item_evidence에 저장하고, 인용문이 그 쪽에 실제로 있는지 검증해요.","p.35 '전매제한기간은 계약일로부터 3년입니다.' verified=true"],
+ ["확인 필요 비율이 30% 이하면 done, 일부만 되면 partial. 3번 실패하면 failed. 결과를 notice.summary_status에도 반영해요.","화면 블록 B·C가 '준비 중' → 정상 표시로 바뀜"]]},
+{k:"correct",n:"③ 정정 감지",when:"수집 때마다 (A)",
+ rw:{notice:"w",notice_version:"w",notice_change:"w",extraction_run:"w",crawl_run:"w"},
+ steps:[
+ ["최근 60일 공고를 다시 조회해 새로 만든 지문을 notice.raw_hash와 비교해요.","PDF도 다시 받아 pdf_hash 비교"],
+ ["달라졌다면 한 트랜잭션으로 묶어서 처리해요: notice 갱신 + notice_version(v2) 추가 + extraction_run(v2, pending) 생성.","current_version=2, last_changed_at=10-21 06:00"],
+ ["PDF의 '정정 안내 상자'나 API 비교로 바뀐 항목을 notice_change에 저장해요.","1순위 접수일 10-21 → 10-23, 계약일 11-08 → 11-10"],
+ ["새 버전은 처음부터 다시 추출해요. 재추출이 끝날 때까지는 직전 버전의 done 결과를 보여 주고 '정정 전 기준' 안내를 띄워요.",""],
+ ["crawl_run.notice_changed가 +1 돼요. 목록 카드에는 7일간 '정정' 배지가 붙어요.",""]]},
+{k:"list",n:"④ 목록 보기",when:"사용자가 앱을 열 때 (B)",
+ rw:{notice:"r",notice_unit:"r",crawl_run:"r"},
+ steps:[
+ ["notice에서 필터에 맞는 공고를 읽어요. 접수 상태(예정·중·마감)는 저장돼 있지 않아 오늘(KST)과 rcept_start/end를 비교해서 계산해요.","오늘 10-22, 접수 10-21~24 → '접수 중 D-2'"],
+ ["분양가·면적·특별공급 필터는 notice_unit을 EXISTS로 조사해요. 한 주택형이 조건을 모두 만족해야 해요.","84㎡ & 5억 이하 → 84.886㎡ 5.23억은 제외"],
+ ["카드의 '3.2억~5.2억', '59~84㎡'는 notice_unit을 min/max 집계해서 만들어요.",""],
+ ["crawl_run에서 마지막 success를 확인해 24시간이 넘었으면 상단에 경고를 띄워요.",""]]},
+{k:"detail",n:"⑤ 상세 보기",when:"카드를 눌렀을 때 (B)",
+ rw:{notice:"r",notice_schedule:"r",notice_unit:"r",notice_version:"r",notice_change:"r",extraction_run:"r",extracted_item:"r",item_evidence:"r"},
+ steps:[
+ ["블록 A(기본 정보·일정): notice + notice_schedule + notice_unit을 읽어요. 출처는 '청약홈'.","타임라인에서 오늘이 어느 단계인지 표시"],
+ ["블록 B·C(당첨 후 제약·조건표): current_version의 done/partial 결과인 extracted_item을 읽어요. 재추출 중이면 직전 done 버전.","status='needs_review'는 회색 + '원문 확인 필요'"],
+ ["근거 칩을 누르면 item_evidence의 쪽 번호와 인용문이 나와요.","p.34 › 당첨된 주택의 입주자로…"],
+ ["블록 D(정정 이력): notice_version + notice_change로 '이전 → 새 값'을 보여 줘요.","1순위 접수일 10-21 → 10-23"]]},
+{k:"sub",n:"⑥ 구독",when:"사용자가 [알림 받기]를 누를 때 (B)",
+ rw:{subscription:"w"},
+ steps:[
+ ["현재 필터를 conditions로 저장해요. 같은 이메일+같은 조건(conditions_hash)이면 막고, 이메일당 3개 초과도 막아요.","{\"v\":1,\"region\":[\"경기\"],\"supply\":[\"newlywed\"]}"],
+ ["status='pending'으로 저장하고 확인 메일을 보내요. 토큰은 7일 유효.","consent_at에 동의 시각 기록"],
+ ["메일의 링크를 누르면 confirmed_at이 찍히고 status='active'. 이제부터 알림 대상이에요.","7일 안에 안 누르면 행 삭제"],
+ ["해지하면 unsubscribed_at 기록 후, 그 이메일의 모든 구독이 pending/active가 아니면 email을 NULL로 지워요.","개인정보 즉시 파기"]]},
+{k:"alert",n:"⑦ 알림 발송",when:"매일 07:30 (A → B)",
+ rw:{subscription:"r",notice:"r",alert_log:"w",alert_outbox:"w",alert_outbox_notice:"w",crawl_run:"r"},
+ steps:[
+ ["(A) 06:00 수집이 success로 끝났는지 crawl_run으로 확인해요.",""],
+ ["(A) active 구독마다 conditions에 맞는 공고를 찾아요. 새 공고는 first_collected_at > 직전 발송 + 접수 예정·중, 정정은 last_changed_at > 직전 발송 + 계약 종료 전.","DEV001 v2 정정이 경기·신혼 조건에 맞음"],
+ ["(A) alert_log에 이미 있는 (공고, 버전, 종류)는 뺍니다 → 중복 방지.",""],
+ ["(A) 남은 게 있으면 alert_outbox 1행 + alert_outbox_notice 여러 행을 한 트랜잭션으로 넣어요. 새+정정이 같은 날이면 combined 한 통.","UNIQUE(구독, send_date)가 하루 한 통을 보장"],
+ ["(B) pending 행을 읽어 notice 데이터로 메일을 만들어 발송해요.",""],
+ ["(B) 성공하면 한 트랜잭션으로 alert_log 추가 + outbox status='sent' + subscription.last_sent_at 갱신. 일시 실패면 1시간 뒤 1회 재시도, 영구 반송이면 그 이메일 구독을 suspended로.",""]]},
+];
+const btns=document.getElementById('scBtns');
+btns.innerHTML=SC.map((s,i)=>`<button data-i="${i}" aria-pressed="${i===0}">${s.n}</button>`).join('');
+function showSc(i){
+  const s=SC[i];
+  btns.querySelectorAll('button').forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  document.querySelectorAll('#flowMap .tb').forEach(el=>{
+    el.classList.remove('r','w','dim');el.querySelector('.m')?.remove();
+    const m=s.rw[el.dataset.t];
+    if(m){el.classList.add(m);el.insertAdjacentHTML('beforeend',`<span class="m">${m==='r'?'읽기':'쓰기'}</span>`)}
+    else el.classList.add('dim');
+  });
+  document.getElementById('scTitle').textContent=s.n;
+  document.getElementById('scWhen').textContent=s.when;
+  document.getElementById('scSteps').innerHTML=s.steps.map(x=>{
+    const seen=new Set();
+    return `<li>${tip(x[0],seen)}${x[1]?`<span class="ex">예: ${tip(x[1],seen)}</span>`:''}</li>`}).join('');
+}
+btns.addEventListener('click',e=>{const b=e.target.closest('button');if(b)showSc(+b.dataset.i)});
+showSc(0);
+
+/* ---------- 용어집 ---------- */
+document.getElementById('glossary').innerHTML=Object.entries(TERMS).map(([k,v])=>`<div><b>${k}</b>${esc(v)}</div>`).join('');
+document.getElementById('dbgl').innerHTML=Object.entries(DBTERMS).map(([k,v])=>`<div><b>${k}</b>${esc(v)}</div>`).join('');
+
+/* ---------- 탭 ---------- */
+const TABS=[["s-map","① 전체 구조"],["s-tables","② 테이블·컬럼"],["s-flow","③ 동작 흐름"],["s-gl","④ 용어 사전"]];
+const tabsEl=document.getElementById('tabs');
+tabsEl.innerHTML=TABS.map(([id,n],i)=>`<button role="tab" data-id="${id}" aria-selected="${i===0}">${n}</button>`).join('');
+function go(id){
+  TABS.forEach(([i])=>document.getElementById(i).classList.toggle('on',i===id));
+  tabsEl.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.id===id));
+  try{history.replaceState(null,'','#'+id)}catch(e){}
+  window.scrollTo(0,0);
+}
+tabsEl.addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(b.dataset.id)});
+go(TABS.some(t=>'#'+t[0]===location.hash)?location.hash.slice(1):'s-map');
+</script>
+<style>.pill{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:5px 12px;border-radius:999px;cursor:pointer;font:inherit;font-size:13px}</style>
+</body>
+</html>
