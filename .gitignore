@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+!.env.dev
 data/
 
 # 공고문 PDF 원본과 추출 텍스트 (용량이 커서 로컬에만 보관)
