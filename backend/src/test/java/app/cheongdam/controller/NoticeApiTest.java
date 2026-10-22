@@ -107,6 +107,22 @@ class NoticeApiTest {
 	}
 
 	@Test
+	void 지역과_공고_유형은_값_안에서는_OR_서로는_AND로_거른다() throws Exception {
+		// 기본 상태(접수 예정 + 접수 중 + 일정 미정)의 공고: N1 경기, N2 서울, N4 대구, N5 인천(무순위)
+		mvc.perform(get("/api/notices").param("region", "서울,경기"))
+				.andExpect(jsonPath("$.items[*].house_manage_no")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("N1", "N2")));
+		mvc.perform(get("/api/notices").param("notice_type", "no_rank"))
+				.andExpect(jsonPath("$.items[*].house_manage_no").value(org.hamcrest.Matchers.contains("N5")));
+		mvc.perform(get("/api/notices").param("notice_type", "general,no_rank"))
+				.andExpect(jsonPath("$.total").value(4));
+		// 경기 공고는 일반 분양뿐이라 무순위와 같이 걸면 비고, 지역 조건을 빼면 N5가 나온다는 제안이 붙는다
+		mvc.perform(get("/api/notices").param("region", "경기").param("notice_type", "no_rank"))
+				.andExpect(jsonPath("$.total").value(0))
+				.andExpect(jsonPath("$.relaxations[?(@.drop=='region')].total").value(1));
+	}
+
+	@Test
 	void 전용면적_구간_경계는_60과_85를_아래_구간에_넣는다() throws Exception {
 		// 이름 검색(경계)으로 위 픽스처와 분리한다. 구간: le60 = ≤60, 60to85 = (60, 85], gt85 = >85
 		notice("B1", "general", "private", "경기", "경계 60.00", 0, 1);
