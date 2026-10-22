@@ -1,4 +1,7 @@
 -- 개발용 샘플 공고. 번호가 DEV로 시작하는 행만 지우고 다시 넣는다.
+-- notice_change·extraction_run은 notice_version에 ON DELETE CASCADE가 없어 먼저 지운다
+DELETE FROM notice_change WHERE house_manage_no LIKE 'DEV%';
+DELETE FROM extraction_run WHERE house_manage_no LIKE 'DEV%';
 DELETE FROM notice WHERE house_manage_no LIKE 'DEV%';
 DELETE FROM crawl_run WHERE error = 'dev-seed';
 
@@ -45,5 +48,63 @@ INSERT INTO notice_unit (house_manage_no, model_no, house_ty, exclusive_area, su
  ('DEV006','01','084.9000A', 84.90, 110.0, 99000, 600, 300, 100, 100, 50, 30, 20, 0, 0, 0, '{}'),
  ('DEV007','01','101.0000A',101.00, 130.0, 72000, 200,  60, 0, 0, 30, 0, 30, 0, 0, 0, '{}'),
  ('DEV008','01','059.0000A', 59.00, 80.0, NULL, 70, 30, 10, 10, 10, 0, 0, 0, 0, 0, '{}');
+
+-- 일정(타임라인): DEV001은 특별공급 완료, 1순위 진행 중
+CREATE TEMP TABLE seed_today AS SELECT (now() AT TIME ZONE 'Asia/Seoul')::date AS d;
+INSERT INTO notice_schedule (house_manage_no, stage, area, start_on, end_on)
+SELECT v.no, v.stage, v.area, t.d + v.s, t.d + v.e
+FROM seed_today t, (VALUES
+  ('DEV001','special','all',    -3, -3),
+  ('DEV001','rank1','local',    -1, -1),
+  ('DEV001','rank1','gyeonggi',  0,  0),
+  ('DEV001','rank2','all',       1,  2),
+  ('DEV001','winner','all',      9,  9),
+  ('DEV001','contract','all',   17, 19),
+  ('DEV002','special','all',     3,  3),
+  ('DEV002','rank1','all',       4,  4),
+  ('DEV002','rank2','all',       5,  5),
+  ('DEV004','no_rank','all',     0,  1),
+  ('DEV004','winner','all',      5,  5)
+) AS v(no, stage, area, s, e);
+DROP TABLE seed_today;
+
+-- DEV001: 1회 정정, 추출 완료
+UPDATE notice SET current_version = 2, summary_status = 'done' WHERE house_manage_no = 'DEV001';
+INSERT INTO notice_version (house_manage_no, version, detected_at, api_hash, pdf_status, change_source) VALUES
+  ('DEV001', 1, now() - interval '3 days', 'dev', 'ok', NULL),
+  ('DEV001', 2, now() - interval '1 day',  'dev', 'ok', 'pdf');
+INSERT INTO notice_change (house_manage_no, version, field, before_value, after_value, source) VALUES
+  ('DEV001', 2, '1순위 접수일', '2026-10-21', '2026-10-23', 'pdf_notice_box'),
+  ('DEV001', 2, '계약일', '2026-11-08', '2026-11-10', 'pdf_notice_box');
+INSERT INTO extraction_run (house_manage_no, version, status, attempt) VALUES ('DEV001', 2, 'done', 1);
+INSERT INTO extracted_item (house_manage_no, version, category, constraint_code, targets, requirement,
+                            is_general_rule, status, sort_order) VALUES
+  ('DEV001', 2, 6, 'rewin_limit',  '{전체}',  '당첨일부터 10년간 재당첨이 제한돼요', false, 'confirmed', 1),
+  ('DEV001', 2, 6, 'resale_limit', '{전체}',  '전매제한 3년', false, 'confirmed', 2),
+  ('DEV001', 2, 6, 'payment',      '{전체}',  '계약금 분양가의 10%, 중도금 60%, 잔금 30%(입주지정일)', false, 'confirmed', 3),
+  ('DEV001', 2, 1, NULL, '{전체}',      '공고일 현재 무주택세대구성원이어야 해요', false, 'confirmed', 1),
+  ('DEV001', 2, 4, NULL, '{newlywed}',  '혼인 기간이 7년 이내여야 해요', false, 'confirmed', 1),
+  ('DEV001', 2, 4, NULL, '{newlywed}',  '소득이 도시근로자 월평균소득 140% 이하여야 해요', false, 'needs_review', 2),
+  ('DEV001', 2, 1, NULL, '{전체}',      '세대란 세대주와 세대원 전원을 말해요', true, 'confirmed', 9);
+INSERT INTO item_evidence (item_id, page, quote, verified)
+SELECT id, 34, '당첨된 주택의 입주자로 선정된 날로부터 10년간 다른 분양주택의 입주자로 선정될 수 없습니다.', true
+FROM extracted_item WHERE house_manage_no = 'DEV001' AND constraint_code = 'rewin_limit';
+INSERT INTO item_evidence (item_id, page, quote, verified)
+SELECT id, 35, '전매제한기간은 계약일로부터 3년입니다.', true
+FROM extracted_item WHERE house_manage_no = 'DEV001' AND constraint_code = 'resale_limit';
+INSERT INTO item_evidence (item_id, page, quote, verified)
+SELECT id, 40, '계약금 10%, 중도금 60%, 잔금 30%', true
+FROM extracted_item WHERE house_manage_no = 'DEV001' AND constraint_code = 'payment';
+INSERT INTO item_evidence (item_id, page, quote, verified)
+SELECT id, p, '공고문 해당 부분 인용', v
+FROM extracted_item,
+     (VALUES (14, true)) AS x(p, v)
+WHERE house_manage_no = 'DEV001' AND category IN (1, 4) AND requirement NOT LIKE '소득%' AND is_general_rule = false;
+INSERT INTO item_evidence (item_id, page, quote, verified)
+SELECT id, 12, '월평균소득 140%', false FROM extracted_item
+WHERE house_manage_no = 'DEV001' AND requirement LIKE '소득%';
+INSERT INTO item_evidence (item_id, page, quote, verified)
+SELECT id, 5, '세대란 세대주와 세대원 전원을 말한다', true FROM extracted_item
+WHERE house_manage_no = 'DEV001' AND is_general_rule;
 
 DROP TABLE seed_notice;
