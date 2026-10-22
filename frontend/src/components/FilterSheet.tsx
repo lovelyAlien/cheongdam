@@ -11,6 +11,7 @@ import {
   toParams,
   type Filters,
 } from '../lib/filters'
+import { TERM_NOTE, TERMS } from '../lib/terms'
 
 const PRICE_STEPS = Array.from({ length: 16 }, (_, i) => i) // 0~15억
 
@@ -35,25 +36,48 @@ function Chips({
   options,
   selected,
   onChange,
+  withHelp = false,
 }: {
   options: { value: string; label: string }[]
   selected: string[]
   onChange: (next: string[]) => void
+  withHelp?: boolean
 }) {
+  const [helpOf, setHelpOf] = useState<string | null>(null)
+  const help = options.find((o) => o.value === helpOf)
   return (
-    <div className="chips">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          className={selected.includes(o.value) ? 'chip on' : 'chip'}
-          aria-pressed={selected.includes(o.value)}
-          onClick={() => onChange(toggle(selected, o.value))}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="chips">
+        {options.map((o) => (
+          <span key={o.value} className="chip-wrap">
+            <button
+              type="button"
+              className={selected.includes(o.value) ? 'chip on' : 'chip'}
+              aria-pressed={selected.includes(o.value)}
+              onClick={() => onChange(toggle(selected, o.value))}
+            >
+              {o.label}
+            </button>
+            {withHelp && TERMS[o.value] && (
+              <button
+                type="button"
+                className="help-btn"
+                aria-label={`${o.label} 설명`}
+                aria-expanded={helpOf === o.value}
+                onClick={() => setHelpOf(helpOf === o.value ? null : o.value)}
+              >
+                ?
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+      {help && (
+        <p className="hint">
+          <strong>{help.label}</strong> {TERMS[help.value]}. {TERM_NOTE}
+        </p>
+      )}
+    </>
   )
 }
 
@@ -108,7 +132,7 @@ export function FilterSheet({ initial, onApply, onClose, inline = false }: Props
 
       <section>
         <h3>특별공급 유형</h3>
-        <Chips options={SUPPLY_OPTIONS} selected={draft.supply} onChange={(v) => set('supply', v)} />
+        <Chips options={SUPPLY_OPTIONS} selected={draft.supply} onChange={(v) => set('supply', v)} withHelp />
         <p className="hint">무순위·재공급 공고는 특별공급 정보가 없어 제외돼요.</p>
       </section>
 
@@ -146,12 +170,12 @@ export function FilterSheet({ initial, onApply, onClose, inline = false }: Props
 
       <section>
         <h3>공고 유형</h3>
-        <Chips options={NOTICE_TYPE_OPTIONS} selected={draft.notice_type} onChange={(v) => set('notice_type', v)} />
+        <Chips options={NOTICE_TYPE_OPTIONS} selected={draft.notice_type} onChange={(v) => set('notice_type', v)} withHelp />
       </section>
 
       <section>
         <h3>주택 구분</h3>
-        <Chips options={HOUSE_KIND_OPTIONS} selected={draft.house_kind} onChange={(v) => set('house_kind', v)} />
+        <Chips options={HOUSE_KIND_OPTIONS} selected={draft.house_kind} onChange={(v) => set('house_kind', v)} withHelp />
       </section>
     </div>
   )

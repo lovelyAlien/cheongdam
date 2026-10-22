@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigationType, useSearchParams } from 'react-router-dom'
 import { fetchNotices } from '../api/notices'
 import type { NoticeItem, NoticeList } from '../api/types'
 import { FilterSheet } from '../components/FilterSheet'
@@ -20,6 +20,10 @@ import {
 } from '../lib/filters'
 import { formatDate } from '../lib/format'
 import { useDesktop } from '../lib/useDesktop'
+import { loadListState, saveListState } from '../lib/listState'
+
+// API의 limit 상한(API.md 2장). 더 보기를 5번 넘게 눌렀어도 복원은 여기까지만 한다.
+const MAX_RESTORE = 100
 
 type Chip = { key: string; label: string; remove: (f: Filters) => Filters }
 
@@ -109,11 +113,22 @@ export function NoticeListPage() {
 
   const req = `${key}#${retry}`
 
+  // 뒤로 가기로 들어왔을 때만 복원한다. 로고나 새 링크로 들어오면 처음부터 보여 준다.
+  const navType = useNavigationType()
+  const [saved] = useState(() => (navType === 'POP' ? loadListState(key) : null))
+  const restored = useRef(false)
+  const initialKey = useRef(key)
+  const scrollY = useRef(0)
+  const loadedCount = useRef(0)
+  const keyRef = useRef(key)
+
   // 필터가 바뀌면 처음부터 다시 불러온다
   useEffect(() => {
     const ctl = new AbortController()
     const params = new URLSearchParams(key)
-    params.set('limit', String(PAGE_SIZE))
+    // 복원은 처음 들어온 URL의 첫 불러오기에만 적용한다
+    const count = saved && !restored.current && key === initialKey.current ? Math.min(saved.count, MAX_RESTORE) : PAGE_SIZE
+    params.set('limit', String(count))
     fetchNotices(params, ctl.signal)
       .then((r) => setResult({ req, data: r, items: r.items, error: false }))
       .catch((e: unknown) => {
@@ -121,7 +136,7 @@ export function NoticeListPage() {
         setResult({ req, data: null, items: [], error: true })
       })
     return () => ctl.abort()
-  }, [key, retry, req])
+  }, [key, retry, req, saved])
 
   // 검색어는 300ms 디바운스 후 URL에 반영
   useEffect(() => {
@@ -135,6 +150,32 @@ export function NoticeListPage() {
   const data = current?.data ?? null
   const items = current?.items ?? []
   const error = (current?.error ?? false) || moreError
+
+  useEffect(() => {
+    loadedCount.current = items.length
+    keyRef.current = key
+  })
+
+  // 스크롤 위치는 계속 기억해 두었다가 목록을 떠날 때 저장한다
+  useEffect(() => {
+    const onScroll = () => {
+      scrollY.current = window.scrollY
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (loadedCount.current > 0) {
+        saveListState(keyRef.current, { count: loadedCount.current, y: scrollY.current })
+      }
+    }
+  }, [])
+
+  // 복원할 개수만큼 그려진 뒤에 한 번만 스크롤한다
+  useEffect(() => {
+    if (!current || !saved || restored.current) return
+    restored.current = true
+    if (key === initialKey.current && !current.error) window.scrollTo(0, saved.y)
+  }, [current, key, saved])
 
   const loadMore = () => {
     if (loadingMore.current || !data) return

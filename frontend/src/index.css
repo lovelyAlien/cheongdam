@@ -144,3 +144,6 @@ a.btn.primary { color: #fff; }
   .filter-panel .sheet-body { background: var(--surface); }
   .list-main .filterbar { margin-top: 0; }
 }
+.chip-wrap { display: inline-flex; align-items: center; gap: 2px; }
+.help-btn { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: 12px; }
+.help-btn[aria-expanded='true'] { border-color: var(--accent); color: var(--accent); }
