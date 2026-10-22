@@ -107,6 +107,27 @@ class NoticeApiTest {
 	}
 
 	@Test
+	void 전용면적_구간_경계는_60과_85를_아래_구간에_넣는다() throws Exception {
+		// 이름 검색(경계)으로 위 픽스처와 분리한다. 구간: le60 = ≤60, 60to85 = (60, 85], gt85 = >85
+		notice("B1", "general", "private", "경기", "경계 60.00", 0, 1);
+		notice("B2", "general", "private", "경기", "경계 60.01", 0, 1);
+		notice("B3", "general", "private", "경기", "경계 85.00", 0, 1);
+		notice("B4", "general", "private", "경기", "경계 85.01", 0, 1);
+		unit("B1", "01", 60.00, 40000, null);
+		unit("B2", "01", 60.01, 40000, null);
+		unit("B3", "01", 85.00, 40000, null);
+		unit("B4", "01", 85.01, 40000, null);
+
+		mvc.perform(get("/api/notices").param("q", "경계").param("area", "le60"))
+				.andExpect(jsonPath("$.items[*].house_manage_no").value(org.hamcrest.Matchers.contains("B1")));
+		mvc.perform(get("/api/notices").param("q", "경계").param("area", "60to85").param("sort", "latest"))
+				.andExpect(jsonPath("$.items[*].house_manage_no")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("B2", "B3")));
+		mvc.perform(get("/api/notices").param("q", "경계").param("area", "gt85"))
+				.andExpect(jsonPath("$.items[*].house_manage_no").value(org.hamcrest.Matchers.contains("B4")));
+	}
+
+	@Test
 	void 주택_구분이나_특별공급_필터는_무순위를_빼고_제외_건수를_알려_준다() throws Exception {
 		mvc.perform(get("/api/notices").param("house_kind", "private"))
 				.andExpect(jsonPath("$.total").value(2)) // N1, N4
