@@ -22,5 +22,14 @@ class ApiCacheConfig implements WebMvcConfigurer {
 				return true;
 			}
 		}).addPathPatterns("/api/notices/**", "/api/notices");
+		// 구독 API는 토큰이 든 응답이므로 저장하지 않는다(API.md 1장)
+		registry.addInterceptor(new org.springframework.web.servlet.HandlerInterceptor() {
+			@Override
+			public boolean preHandle(jakarta.servlet.http.HttpServletRequest request,
+					jakarta.servlet.http.HttpServletResponse response, Object handler) {
+				response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+				return true;
+			}
+		}).addPathPatterns("/api/alerts/**");
 	}
 }
