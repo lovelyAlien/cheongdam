@@ -54,6 +54,8 @@ class NoticeApiTest {
 
 	@BeforeEach
 	void fixtures() {
+		jdbc.sql("DELETE FROM notice_change").update();
+		jdbc.sql("DELETE FROM extraction_run").update();
 		jdbc.sql("DELETE FROM notice").update();
 		// 접수 중(종료 D-2), 접수 예정(D-3), 마감(어제 종료), 일정 미정, 무순위(주택 구분 없음)
 		notice("N1", "general", "private", "경기", "자이 센트럴", -1, 2);
@@ -73,6 +75,7 @@ class NoticeApiTest {
 	void 기본_조건은_접수_예정과_접수_중이고_접수_중이_먼저_나온다() throws Exception {
 		mvc.perform(get("/api/notices"))
 				.andExpect(status().isOk())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-cache"))
 				.andExpect(jsonPath("$.total").value(4))
 				.andExpect(jsonPath("$.items[0].house_manage_no").value("N5")) // 접수 중, 종료 D-1
 				.andExpect(jsonPath("$.items[0].d_day").value(1))
