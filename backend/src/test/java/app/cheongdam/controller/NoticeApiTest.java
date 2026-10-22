@@ -107,6 +107,22 @@ class NoticeApiTest {
 	}
 
 	@Test
+	void 지역과_공고_유형은_값_안에서는_OR_서로는_AND로_거른다() throws Exception {
+		// 기본 상태(접수 예정 + 접수 중 + 일정 미정)의 공고: N1 경기, N2 서울, N4 대구, N5 인천(무순위)
+		mvc.perform(get("/api/notices").param("region", "서울,경기"))
+				.andExpect(jsonPath("$.items[*].house_manage_no")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("N1", "N2")));
+		mvc.perform(get("/api/notices").param("notice_type", "no_rank"))
+				.andExpect(jsonPath("$.items[*].house_manage_no").value(org.hamcrest.Matchers.contains("N5")));
+		mvc.perform(get("/api/notices").param("notice_type", "general,no_rank"))
+				.andExpect(jsonPath("$.total").value(4));
+		// 경기 공고는 일반 분양뿐이라 무순위와 같이 걸면 비고, 지역 조건을 빼면 N5가 나온다는 제안이 붙는다
+		mvc.perform(get("/api/notices").param("region", "경기").param("notice_type", "no_rank"))
+				.andExpect(jsonPath("$.total").value(0))
+				.andExpect(jsonPath("$.relaxations[?(@.drop=='region')].total").value(1));
+	}
+
+	@Test
 	void 주택_구분이나_특별공급_필터는_무순위를_빼고_제외_건수를_알려_준다() throws Exception {
 		mvc.perform(get("/api/notices").param("house_kind", "private"))
 				.andExpect(jsonPath("$.total").value(2)) // N1, N4
