@@ -39,3 +39,39 @@ export function formatDate(iso: string, now: Date = new Date()): string {
   const md = `${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}`
   return y === now.getFullYear() ? `${md}(${weekday})` : `${y}.${md}(${weekday})`
 }
+
+export const STAGE_LABEL: Record<string, string> = {
+  special: '특별공급',
+  rank1: '1순위',
+  rank2: '2순위',
+  no_rank: '무순위 접수',
+  general: '일반공급',
+  winner: '당첨자 발표',
+  contract: '계약',
+}
+
+export const AREA_LABEL: Record<string, string> = {
+  local: '해당지역',
+  gyeonggi: '기타경기',
+  other: '기타지역',
+}
+
+export function formatDateRange(start: string, end: string, now: Date = new Date()): string {
+  return start === end ? formatDate(start, now) : `${formatDate(start, now)} ~ ${formatDate(end, now)}`
+}
+
+/** 202903 → 2029년 3월 */
+export function formatMoveIn(ym: string | null): string | null {
+  return ym && /^\d{6}$/.test(ym) ? `${ym.slice(0, 4)}년 ${Number(ym.slice(4))}월` : null
+}
+
+/** 전용면적 84.886 + 084.8860A → 84.89㎡ A */
+export function formatUnit(exclusive: number, houseTy: string): string {
+  const suffix = houseTy.match(/[A-Za-z가-힣]+$/)?.[0] ?? ''
+  const area = (Math.round(exclusive * 100) / 100).toString()
+  return suffix ? `${area}㎡ ${suffix}` : `${area}㎡`
+}
+
+export function formatDateTime(iso: string): string {
+  return `${formatDate(iso.slice(0, 10))} ${iso.slice(11, 16)}`
+}
