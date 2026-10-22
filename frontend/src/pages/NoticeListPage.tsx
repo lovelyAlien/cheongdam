@@ -19,6 +19,7 @@ import {
   type Filters,
 } from '../lib/filters'
 import { formatDate } from '../lib/format'
+import { useDesktop } from '../lib/useDesktop'
 
 type Chip = { key: string; label: string; remove: (f: Filters) => Filters }
 
@@ -90,6 +91,7 @@ export function NoticeListPage() {
   const [result, setResult] = useState<{ req: string; data: NoticeList | null; items: NoticeItem[]; error: boolean } | null>(null)
   const [moreError, setMoreError] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const desktop = useDesktop()
   const [searchText, setSearchText] = useState(filters.q)
   // 뒤로 가기 등으로 URL의 검색어가 바뀌면 입력창도 맞춘다(렌더 중 상태 조정)
   const [prevQ, setPrevQ] = useState(filters.q)
@@ -154,7 +156,7 @@ export function NoticeListPage() {
   const crawlAt = data?.last_crawl.finished_at
 
   return (
-    <main className="list-page">
+    <main className={desktop ? 'list-page desktop' : 'list-page'}>
       <header className="topbar">
         <h1>청담</h1>
       </header>
@@ -169,10 +171,15 @@ export function NoticeListPage() {
         />
       </div>
 
+      <div className="list-layout">
+      {desktop && <FilterSheet inline initial={filters} onApply={update} />}
+      <div className="list-main">
       <div className="filterbar">
-        <button type="button" className="btn filter-btn" onClick={() => setSheetOpen(true)}>
-          필터{count > 0 ? ` ${count}` : ''}
-        </button>
+        {!desktop && (
+          <button type="button" className="btn filter-btn" onClick={() => setSheetOpen(true)}>
+            필터{count > 0 ? ` ${count}` : ''}
+          </button>
+        )}
         <div className="active-chips">
           {chips.map((c) => (
             <button key={c.key} type="button" className="chip on small" onClick={() => update(c.remove(filters))}>
@@ -258,11 +265,14 @@ export function NoticeListPage() {
         </div>
       )}
 
+      </div>
+      </div>
+
       <footer className="footer">
         청담은 청약홈(한국부동산원)의 공개 데이터와 공고문을 바탕으로 정보를 제공하며, 정보의 정확성을 보증하지 않습니다.
       </footer>
 
-      {sheetOpen && (
+      {sheetOpen && !desktop && (
         <FilterSheet
           initial={filters}
           onClose={() => setSheetOpen(false)}

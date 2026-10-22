@@ -135,3 +135,12 @@ button { cursor: pointer; }
 a.btn { display: inline-block; text-decoration: none; color: inherit; }
 a.btn.primary { color: #fff; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 10px 16px; border-radius: 10px; background: var(--text); color: var(--bg); font-size: 14px; }
+
+/* ---- 데스크톱 필터 패널 (S-02) ---- */
+@media (min-width: 960px) {
+  .list-page.desktop { max-width: 1040px; }
+  .list-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 12px; }
+  .filter-panel { position: sticky; top: 16px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .filter-panel .sheet-body { background: var(--surface); }
+  .list-main .filterbar { margin-top: 0; }
+}
