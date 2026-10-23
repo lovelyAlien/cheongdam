@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigationType, useSearchParams } from 'react-router-dom'
+import { useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
+import { ApiError, changeConditions } from '../api/alerts'
 import { fetchNotices } from '../api/notices'
 import type { NoticeItem, NoticeList } from '../api/types'
 import { FilterSheet } from '../components/FilterSheet'
 import { NoticeCard } from '../components/NoticeCard'
+import { SubscribeSheet } from '../components/SubscribeSheet'
 import {
   activeFilterCount,
   AREA_OPTIONS,
@@ -18,6 +20,8 @@ import {
   toParams,
   type Filters,
 } from '../lib/filters'
+import { toConditions } from '../lib/alertConditions'
+import { clearEdit, readEdit } from '../lib/alertEdit'
 import { formatDate } from '../lib/format'
 import { useDesktop } from '../lib/useDesktop'
 import { loadListState, saveListState } from '../lib/listState'
@@ -95,6 +99,12 @@ export function NoticeListPage() {
   const [result, setResult] = useState<{ req: string; data: NoticeList | null; items: NoticeItem[]; error: boolean } | null>(null)
   const [moreError, setMoreError] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const navigate = useNavigate()
+  // `다시 구독하기`(S-08d)로 들어오면 구독 시트를 바로 연다
+  const [subscribeOpen, setSubscribeOpen] = useState(() => searchParams.get('subscribe') === '1')
+  // `조건 바꾸기`(S-08c)로 들어온 경우: 필터를 바꾼 뒤 그 구독에 저장한다
+  const [edit, setEdit] = useState(readEdit)
+  const [editError, setEditError] = useState('')
   const desktop = useDesktop()
   const [searchText, setSearchText] = useState(filters.q)
   // 뒤로 가기 등으로 URL의 검색어가 바뀌면 입력창도 맞춘다(렌더 중 상태 조정)
@@ -105,6 +115,21 @@ export function NoticeListPage() {
   }
   const [retry, setRetry] = useState(0)
   const loadingMore = useRef(false)
+
+  useEffect(() => {
+    if (searchParams.has('subscribe')) setSearchParams(toParams(parseFilters(searchParams)), { replace: true })
+  }, [searchParams, setSearchParams])
+
+  const saveEdit = async () => {
+    if (!edit) return
+    try {
+      await changeConditions(edit.token, edit.id, toConditions(filters))
+      clearEdit()
+      navigate(`/alerts/manage?token=${encodeURIComponent(edit.token)}`)
+    } catch (e) {
+      setEditError(e instanceof ApiError && e.message ? e.message : '저장하지 못했어요. 다시 시도해 주세요.')
+    }
+  }
 
   const update = useCallback(
     (next: Filters) => setSearchParams(toParams(next), { replace: false }),
@@ -202,6 +227,26 @@ export function NoticeListPage() {
         <h1>청담</h1>
       </header>
 
+      {edit && (
+        <div className="banner">
+          알림 조건을 바꾸는 중이에요. 필터를 바꾼 뒤 저장해 주세요.{' '}
+          <button type="button" className="btn small-btn primary" onClick={saveEdit}>
+            이 조건으로 저장
+          </button>{' '}
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              clearEdit()
+              setEdit(null)
+            }}
+          >
+            취소
+          </button>
+          {editError && <p className="form-error">{editError}</p>}
+        </div>
+      )}
+
       <div className="search">
         <input
           type="search"
@@ -249,6 +294,12 @@ export function NoticeListPage() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+      </div>
+
+      <div className="alert-bar">
+        <button type="button" className="btn alert-btn" onClick={() => setSubscribeOpen(true)}>
+          🔔 이 조건으로 알림 받기
+        </button>
       </div>
 
       {data && data.no_info_excluded > 0 && (
@@ -312,6 +363,14 @@ export function NoticeListPage() {
       <footer className="footer">
         청담은 청약홈(한국부동산원)의 공개 데이터와 공고문을 바탕으로 정보를 제공하며, 정보의 정확성을 보증하지 않습니다.
       </footer>
+
+      {subscribeOpen && (
+        <SubscribeSheet
+          conditions={toConditions(filters)}
+          noInfoExcluded={filters.supply.length > 0 || filters.house_kind.length > 0}
+          onClose={() => setSubscribeOpen(false)}
+        />
+      )}
 
       {sheetOpen && !desktop && (
         <FilterSheet
