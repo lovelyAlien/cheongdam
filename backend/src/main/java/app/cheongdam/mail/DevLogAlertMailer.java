@@ -25,6 +25,19 @@ class DevLogAlertMailer implements AlertMailer {
 	}
 
 	@Override
+	public void digest(String email, DigestMail mail) {
+		StringBuilder sb = new StringBuilder("[알림] to=").append(email).append(" subject=").append(mail.subject());
+		mail.corrections().forEach(c -> sb.append("\n  정정 ").append(c.houseManageNo()).append(' ').append(c.name())
+				.append(' ').append(c.changes()));
+		mail.newNotices().forEach(n -> sb.append("\n  신규 ").append(n.houseManageNo()).append(' ').append(n.name())
+				.append(' ').append(n.status()));
+		if (mail.moreNewCount() > 0) {
+			sb.append("\n  ... ").append(mail.moreNewCount()).append("건 더");
+		}
+		log.info(sb.toString());
+	}
+
+	@Override
 	public void manageLink(String email, String manageToken) {
 		log.info("[관리 링크] to={} /alerts/manage?token={}", email, manageToken);
 	}

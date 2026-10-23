@@ -24,6 +24,12 @@ class UnconfiguredAlertMailer implements AlertMailer {
 		log.warn("메일 발송이 아직 연결되지 않아 M-04를 보내지 못했어요");
 	}
 
+	/** 보냈다고 기록하지 않도록 던진다. 발송 배치는 메일이 연결되기 전에는 켜지 않는다. */
+	@Override
+	public void digest(String email, DigestMail mail) {
+		throw new IllegalStateException("메일 발송이 아직 연결되지 않았어요");
+	}
+
 	@Override
 	public void manageLink(String email, String manageToken) {
 		log.warn("메일 발송이 아직 연결되지 않아 관리 링크를 보내지 못했어요");
