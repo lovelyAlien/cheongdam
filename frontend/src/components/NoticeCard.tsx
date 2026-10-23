@@ -33,7 +33,16 @@ function scheduleLine(n: NoticeItem): string | null {
     : `접수 ${formatDate(n.rcept_start)} → ${formatDate(n.rcept_end)}`
 }
 
-export function NoticeCard({ notice: n, highlight }: { notice: NoticeItem; highlight: string[] }) {
+export function NoticeCard({
+  notice: n,
+  highlight,
+  detailQuery = '',
+}: {
+  notice: NoticeItem
+  highlight: string[]
+  /** 상세로 함께 넘기는 주택형 단위 필터(toDetailParams) */
+  detailQuery?: string
+}) {
   const badge = statusBadge(n)
   const facts = [
     formatPriceRange(n.price_min_man, n.price_max_man),
@@ -46,7 +55,7 @@ export function NoticeCard({ notice: n, highlight }: { notice: NoticeItem; highl
 
   return (
     <li className="card">
-      <Link to={`/notices/${n.house_manage_no}`} className="card-link">
+      <Link to={`/notices/${n.house_manage_no}${detailQuery ? `?${detailQuery}` : ''}`} className="card-link">
         <div className="badges">
           <span className={`badge ${badge.cls}`}>{badge.text}</span>
           {n.notice_type === 'no_rank' && <span className="badge type">무순위</span>}

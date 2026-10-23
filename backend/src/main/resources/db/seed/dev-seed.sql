@@ -86,6 +86,7 @@ INSERT INTO extracted_item (house_manage_no, version, category, constraint_code,
   ('DEV001', 2, 6, 'rewin_limit',  '{전체}',  '당첨일부터 10년간 재당첨이 제한돼요', false, 'confirmed', 1),
   ('DEV001', 2, 6, 'resale_limit', '{전체}',  '전매제한 3년', false, 'confirmed', 2),
   ('DEV001', 2, 6, 'payment',      '{전체}',  '계약금 분양가의 10%, 중도금 60%, 잔금 30%(입주지정일)', false, 'confirmed', 3),
+  ('DEV001', 2, 6, 'resale_limit', '{newlywed}', '전매제한 1년', false, 'confirmed', 4),
   ('DEV001', 2, 1, NULL, '{전체}',      '공고일 현재 무주택세대구성원이어야 해요', false, 'confirmed', 1),
   ('DEV001', 2, 4, NULL, '{newlywed}',  '혼인 기간이 7년 이내여야 해요', false, 'confirmed', 1),
   ('DEV001', 2, 4, NULL, '{newlywed}',  '소득이 도시근로자 월평균소득 140% 이하여야 해요', false, 'needs_review', 2),
@@ -95,7 +96,10 @@ SELECT id, 34, '당첨된 주택의 입주자로 선정된 날로부터 10년간
 FROM extracted_item WHERE house_manage_no = 'DEV001' AND constraint_code = 'rewin_limit';
 INSERT INTO item_evidence (item_id, page, quote, verified)
 SELECT id, 35, '전매제한기간은 계약일로부터 3년입니다.', true
-FROM extracted_item WHERE house_manage_no = 'DEV001' AND constraint_code = 'resale_limit';
+FROM extracted_item WHERE house_manage_no = 'DEV001' AND constraint_code = 'resale_limit' AND targets = '{전체}';
+INSERT INTO item_evidence (item_id, page, quote, verified)
+SELECT id, 36, '신혼부부 특별공급 당첨자의 전매제한기간은 계약일로부터 1년입니다.', true
+FROM extracted_item WHERE house_manage_no = 'DEV001' AND constraint_code = 'resale_limit' AND targets = '{newlywed}';
 INSERT INTO item_evidence (item_id, page, quote, verified)
 SELECT id, 40, '계약금 10%, 중도금 60%, 잔금 30%', true
 FROM extracted_item WHERE house_manage_no = 'DEV001' AND constraint_code = 'payment';
