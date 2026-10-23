@@ -17,6 +17,7 @@ import {
   SORT_OPTIONS,
   STATUS_OPTIONS,
   SUPPLY_OPTIONS,
+  toDetailParams,
   toParams,
   type Filters,
 } from '../lib/filters'
@@ -347,7 +348,7 @@ export function NoticeListPage() {
 
       <ul className="cards">
         {items.map((n) => (
-          <NoticeCard key={n.house_manage_no} notice={n} highlight={filters.supply} />
+          <NoticeCard key={n.house_manage_no} notice={n} highlight={filters.supply} detailQuery={toDetailParams(filters)} />
         ))}
       </ul>
 

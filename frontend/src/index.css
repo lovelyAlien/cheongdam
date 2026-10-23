@@ -164,3 +164,15 @@ a.btn.primary { color: #fff; }
 .btn:disabled { opacity: .5; cursor: default; }
 .alert-list { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 12px; }
 .alert-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+/* ---- 상세 블록 B·C 보강 ---- */
+button.evidence { border: none; cursor: pointer; font: inherit; font-size: 12px; }
+button.evidence[aria-expanded='true'] { background: var(--accent); color: #fff; }
+.quotes { list-style: none; margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--accent-soft); font-size: 13px; line-height: 1.5; display: grid; gap: 6px; }
+.quote-page { font-weight: 700; color: var(--accent); }
+.value { margin-top: 6px; }
+.value p { margin: 0; }
+.value.review { color: var(--muted); }
+.target { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 6px; background: var(--line); font-size: 12px; font-weight: 600; }
+.row.hit { background: var(--accent-soft); border-radius: 10px; padding: 8px 10px; border-bottom: none; }
+.star { color: var(--accent); }

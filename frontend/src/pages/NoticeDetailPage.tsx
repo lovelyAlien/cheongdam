@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fetchNotice, NotFoundError } from '../api/notices'
 import type { NoticeDetail, ScheduleRow, Unit } from '../api/types'
+import { hasUnitFilter, parseFilters, unitMatches, type Filters } from '../lib/filters'
 import { ExtractionBlocks } from '../components/detail/ExtractionBlocks'
 import {
   AREA_LABEL,
@@ -23,6 +24,8 @@ export function NoticeDetailPage() {
   const [load, setLoad] = useState<Load | null>(null)
   const [retry, setRetry] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
+  // 목록에서 넘어온 주택형 단위 필터. 일치하는 주택형 강조와 블록 C 기본 유형에 쓴다
+  const filters = parseFilters(useSearchParams()[0])
 
   useEffect(() => {
     const ctl = new AbortController()
@@ -41,7 +44,8 @@ export function NoticeDetailPage() {
   const back = () => (window.history.length > 1 ? navigate(-1) : navigate('/'))
 
   const share = async () => {
-    const url = window.location.href
+    // 필터 쿼리는 이 화면을 보는 방식일 뿐이라 공유 링크에는 넣지 않는다
+    const url = `${window.location.origin}${window.location.pathname}`
     if (navigator.share) {
       try {
         await navigator.share({ title: detail?.header.name, url })
@@ -149,11 +153,17 @@ export function NoticeDetailPage() {
         )}
       </section>
 
-      <ExtractionBlocks extraction={detail.extraction} noticeUrl={h.notice_url} noticeType={h.notice_type} />
+      <ExtractionBlocks
+        extraction={detail.extraction}
+        noticeUrl={h.notice_url}
+        noticeType={h.notice_type}
+        preferredTypes={filters.supply}
+        contract={detail.schedule.find((r) => r.stage === 'contract') ?? null}
+      />
 
       <section id="units" className="block">
         <h2>주택형별 공급 <span className="source">출처: 청약홈</span></h2>
-        <Units units={detail.units} />
+        <Units units={detail.units} filters={filters} />
       </section>
 
       {detail.changes.length > 0 && (
@@ -225,14 +235,23 @@ function Timeline({ rows }: { rows: ScheduleRow[] }) {
   )
 }
 
-function Units({ units }: { units: Unit[] }) {
+function Units({ units, filters }: { units: Unit[]; filters: Filters }) {
   if (units.length === 0) return <p className="muted">주택형 정보가 없어요. 공고문에서 확인해 주세요.</p>
+  const filtered = hasUnitFilter(filters)
+  const hits = filtered ? units.filter((u) => unitMatches(u, filters)).length : 0
   return (
+    <>
+    {hits > 0 && <p className="muted small">★ 목록에서 고른 조건을 만족하는 주택형이에요.</p>}
     <ul className="rows">
-      {units.map((u) => (
-        <li key={u.model_no} className="row">
+      {units.map((u) => {
+        const hit = filtered && unitMatches(u, filters)
+        return (
+        <li key={u.model_no} className={hit ? 'row hit' : 'row'}>
           <div className="row-head">
-            <strong>{formatUnit(u.exclusive_area, u.house_ty)}</strong>
+            <strong>
+              {formatUnit(u.exclusive_area, u.house_ty)}
+              {hit && <span className="star" title="목록에서 고른 조건을 만족해요" aria-label="조건 만족"> ★</span>}
+            </strong>
             <span>{u.top_price_man != null ? formatPriceMan(u.top_price_man) : '공고문 확인'}</span>
           </div>
           <p className="muted">
@@ -254,7 +273,9 @@ function Units({ units }: { units: Unit[] }) {
             </details>
           )}
         </li>
-      ))}
+        )
+      })}
     </ul>
+    </>
   )
 }

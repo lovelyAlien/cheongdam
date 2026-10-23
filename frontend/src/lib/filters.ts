@@ -1,3 +1,5 @@
+import type { Unit } from '../api/types'
+
 // 필터 상태 = URL 쿼리 = API 쿼리 = 구독 conditions. 같은 이름과 형식을 쓴다(SCREENS 1장, API.md 2장).
 
 export const PAGE_SIZE = 20
@@ -110,4 +112,36 @@ export function activeFilterCount(f: Filters): number {
 
 export function labelOf(options: { value: string; label: string }[], value: string) {
   return options.find((o) => o.value === value)?.label ?? value
+}
+
+/**
+ * 상세 화면으로 넘기는 주택형 단위 조건(특별공급·분양가·전용면적, F3-5~7).
+ * 상세는 이 조건으로 일치하는 주택형 행을 강조하고 블록 C의 기본 유형을 고른다.
+ */
+export function toDetailParams(f: Filters): string {
+  const p = new URLSearchParams()
+  if (f.supply.length) p.set('supply', f.supply.join(','))
+  if (f.price_min != null) p.set('price_min', String(f.price_min))
+  if (f.price_max != null) p.set('price_max', String(f.price_max))
+  if (f.area.length) p.set('area', f.area.join(','))
+  return p.toString()
+}
+
+export function hasUnitFilter(f: Filters): boolean {
+  return f.supply.length > 0 || f.price_min != null || f.price_max != null || f.area.length > 0
+}
+
+const AREA_RANGES: Record<string, (a: number) => boolean> = {
+  le60: (a) => a <= 60,
+  '60to85': (a) => a > 60 && a <= 85,
+  gt85: (a) => a > 85,
+}
+
+/** 한 주택형이 주택형 단위 조건을 모두 만족하는가(F3-9). 서버 필터와 같은 규칙이다. */
+export function unitMatches(u: Unit, f: Filters): boolean {
+  if (f.supply.length && !f.supply.some((c) => (u.special_by_type?.[c] ?? 0) > 0)) return false
+  if (f.price_min != null && (u.top_price_man == null || u.top_price_man < f.price_min)) return false
+  if (f.price_max != null && (u.top_price_man == null || u.top_price_man > f.price_max)) return false
+  if (f.area.length && !f.area.some((code) => AREA_RANGES[code]?.(u.exclusive_area))) return false
+  return true
 }
