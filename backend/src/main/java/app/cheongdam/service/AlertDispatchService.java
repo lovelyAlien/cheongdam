@@ -2,6 +2,7 @@ package app.cheongdam.service;
 
 import app.cheongdam.domain.Notice;
 import app.cheongdam.domain.NoticeChange;
+import app.cheongdam.domain.NoticeSchedule;
 import app.cheongdam.domain.NoticeUnit;
 import app.cheongdam.domain.Subscription;
 import app.cheongdam.dto.NoticeFilter;
@@ -13,6 +14,7 @@ import app.cheongdam.mail.DigestMail.CorrectionEntry;
 import app.cheongdam.mail.DigestMail.NewEntry;
 import app.cheongdam.repository.NoticeChangeRepository;
 import app.cheongdam.repository.NoticeRepository;
+import app.cheongdam.repository.NoticeScheduleRepository;
 import app.cheongdam.repository.NoticeSpecifications;
 import app.cheongdam.repository.NoticeUnitRepository;
 import app.cheongdam.repository.SubscriptionRepository;
@@ -57,6 +59,7 @@ public class AlertDispatchService {
 	private final NoticeRepository noticeRepository;
 	private final NoticeUnitRepository unitRepository;
 	private final NoticeChangeRepository changeRepository;
+	private final NoticeScheduleRepository scheduleRepository;
 	private final AlertMailer mailer;
 	private final JdbcClient jdbc;
 	private final JsonMapper json;
@@ -64,12 +67,14 @@ public class AlertDispatchService {
 	private final TransactionTemplate tx;
 
 	public AlertDispatchService(SubscriptionRepository subscriptionRepository, NoticeRepository noticeRepository,
-			NoticeUnitRepository unitRepository, NoticeChangeRepository changeRepository, AlertMailer mailer,
+			NoticeUnitRepository unitRepository, NoticeChangeRepository changeRepository,
+			NoticeScheduleRepository scheduleRepository, AlertMailer mailer,
 			JdbcClient jdbc, JsonMapper json, Clock clock, PlatformTransactionManager txManager) {
 		this.subscriptionRepository = subscriptionRepository;
 		this.noticeRepository = noticeRepository;
 		this.unitRepository = unitRepository;
 		this.changeRepository = changeRepository;
+		this.scheduleRepository = scheduleRepository;
 		this.mailer = mailer;
 		this.jdbc = jdbc;
 		this.json = json;
@@ -254,11 +259,14 @@ public class AlertDispatchService {
 		Map<String, List<NoticeUnit>> units = unitRepository.findByIdHouseManageNoIn(notices.keySet()).stream()
 				.collect(Collectors.groupingBy(u -> u.getId().getHouseManageNo()));
 
+		Map<String, NoticeSchedule> firstRcept = firstRceptStages(notices.keySet());
 		List<NewEntry> all = new ArrayList<>(queued.stream().filter(q -> q.kind().equals("new"))
 				.map(q -> notices.get(q.houseManageNo())).filter(Objects::nonNull)
 				.sorted(Comparator.comparing(Notice::getRceptStart, Comparator.nullsLast(Comparator.naturalOrder()))
 						.thenComparing(Notice::getHouseManageNo))
-				.map(n -> newEntry(n, units.getOrDefault(n.getHouseManageNo(), List.of()), today)).toList());
+				.map(n -> newEntry(n, units.getOrDefault(n.getHouseManageNo(), List.of()),
+						firstRcept.get(n.getHouseManageNo()), today))
+				.toList());
 		List<NewEntry> shown = all.size() > MAX_NEW_IN_MAIL ? all.subList(0, MAX_NEW_IN_MAIL) : all;
 
 		List<CorrectionEntry> corrections = queued.stream().filter(q -> q.kind().equals("correction"))
@@ -291,12 +299,24 @@ public class AlertDispatchService {
 				.map((NoticeChange c) -> new Change(c.getField(), c.getBeforeValue(), c.getAfterValue())).toList();
 	}
 
-	private static NewEntry newEntry(Notice n, List<NoticeUnit> units, LocalDate today) {
+	private static final List<String> RCEPT_STAGES = List.of("special", "rank1", "rank2", "no_rank", "general");
+
+	/** 공고마다 접수 단계 중 가장 이른 것. 같은 날이면 특별공급 → 1순위 → 2순위 순. */
+	private Map<String, NoticeSchedule> firstRceptStages(Set<String> houseManageNos) {
+		return scheduleRepository.findByIdHouseManageNoIn(houseManageNos).stream()
+				.filter(r -> RCEPT_STAGES.contains(r.getStage()))
+				.collect(Collectors.toMap(r -> r.getId().getHouseManageNo(), r -> r,
+						(a, b) -> Comparator.comparing(NoticeSchedule::getStartOn)
+								.thenComparing(r -> RCEPT_STAGES.indexOf(r.getStage())).compare(a, b) <= 0 ? a : b));
+	}
+
+	private static NewEntry newEntry(Notice n, List<NoticeUnit> units, NoticeSchedule first, LocalDate today) {
 		List<Integer> prices = units.stream().map(NoticeUnit::getTopPriceMan).filter(Objects::nonNull).toList();
 		List<BigDecimal> areas = units.stream().map(NoticeUnit::getExclusiveArea).filter(Objects::nonNull).toList();
 		return new NewEntry(n.getHouseManageNo(), n.getName(), n.getNoticeType(), n.getHouseKind(), n.getRegion(),
 				n.getAddress(), NoticeStatus.of(n.getRceptStart(), n.getRceptEnd(), today), n.getRceptStart(),
-				n.getRceptEnd(), prices.stream().min(Integer::compare).orElse(null),
+				n.getRceptEnd(), first == null ? null : first.getStartOn(), first == null ? null : first.getStage(),
+				prices.stream().min(Integer::compare).orElse(null),
 				prices.stream().max(Integer::compare).orElse(null),
 				areas.stream().min(BigDecimal::compareTo).map(BigDecimal::doubleValue).orElse(null),
 				areas.stream().max(BigDecimal::compareTo).map(BigDecimal::doubleValue).orElse(null));

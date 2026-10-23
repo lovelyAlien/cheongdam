@@ -27,6 +27,9 @@ public record DigestMail(
 			String status,
 			LocalDate rceptStart,
 			LocalDate rceptEnd,
+			/** 접수 단계 중 가장 이른 날과 그 단계(special, rank1, no_rank 등). 일정이 없으면 null */
+			LocalDate firstRceptOn,
+			String firstRceptStage,
 			Integer priceMinMan,
 			Integer priceMaxMan,
 			Double areaMin,
