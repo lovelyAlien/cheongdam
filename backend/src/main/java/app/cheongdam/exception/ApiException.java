@@ -23,6 +23,14 @@ public class ApiException extends RuntimeException {
 		return new ApiException(HttpStatus.NOT_FOUND, "not_found", message, null);
 	}
 
+	public static ApiException conflict(String code, String message) {
+		return new ApiException(HttpStatus.CONFLICT, code, message, null);
+	}
+
+	public static ApiException gone(String code, String message) {
+		return new ApiException(HttpStatus.GONE, code, message, null);
+	}
+
 	public HttpStatus status() {
 		return status;
 	}
