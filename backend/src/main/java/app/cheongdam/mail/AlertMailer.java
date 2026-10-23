@@ -12,6 +12,9 @@ public interface AlertMailer {
 	/** M-04 해지 완료. emailDeleted면 이메일 주소를 바로 지웠다는 문구를 넣는다. */
 	void unsubscribed(String email, List<Map<String, Object>> conditions, boolean emailDeleted);
 
+	/** M-02 새 공고 알림, M-03 정정 알림, 또는 둘을 합친 한 통(P-19). 보내지 못하면 예외를 던진다. */
+	void digest(String email, DigestMail mail);
+
 	/** 관리 링크 메일(E-18) */
 	void manageLink(String email, String manageToken);
 }

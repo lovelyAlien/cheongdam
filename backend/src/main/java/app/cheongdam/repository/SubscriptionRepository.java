@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
 
+	List<Subscription> findByStatus(String status);
+
 	Optional<Subscription> findByConfirmToken(String confirmToken);
 
 	Optional<Subscription> findByManageToken(String manageToken);
