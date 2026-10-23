@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface NoticeScheduleRepository extends JpaRepository<NoticeSchedule, NoticeScheduleId> {
 
 	List<NoticeSchedule> findByIdHouseManageNo(String houseManageNo);
+
+	List<NoticeSchedule> findByIdHouseManageNoIn(java.util.Collection<String> houseManageNos);
 }

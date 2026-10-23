@@ -1,5 +1,9 @@
 -- 개발용 샘플 공고. 번호가 DEV로 시작하는 행만 지우고 다시 넣는다.
 -- notice_change·extraction_run은 notice_version에 ON DELETE CASCADE가 없어 먼저 지운다
+-- 알림 발송 대기·이력이 샘플 공고를 가리키면 지울 수 없으므로 먼저 지운다(비게 된 발송 대기도 함께)
+DELETE FROM alert_outbox_notice WHERE house_manage_no LIKE 'DEV%';
+DELETE FROM alert_outbox o WHERE NOT EXISTS (SELECT 1 FROM alert_outbox_notice n WHERE n.outbox_id = o.id);
+DELETE FROM alert_log WHERE house_manage_no LIKE 'DEV%';
 DELETE FROM notice_change WHERE house_manage_no LIKE 'DEV%';
 DELETE FROM extraction_run WHERE house_manage_no LIKE 'DEV%';
 DELETE FROM notice WHERE house_manage_no LIKE 'DEV%';
