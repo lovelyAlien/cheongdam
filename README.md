@@ -18,6 +18,7 @@ Docker만 있으면 된다.
 ```bash
 ./dev.sh up      # DB + 백엔드(샘플 공고 포함) + Nginx(React)를 빌드해서 실행
 ./dev.sh logs    # 로그 (./dev.sh logs backend)
+./dev.sh stop    # 중지, DB 데이터 유지
 ./dev.sh down    # 중지, DB 데이터 삭제
 ```
 
