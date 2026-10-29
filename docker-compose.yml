@@ -24,6 +24,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  batch:
+    build: ./batch
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: ${DB_PASSWORD}
+      DATA_GO_KR_KEY: ${DATA_GO_KR_KEY:-}
+      PDF_DIR: /data/pdfs
+    volumes:
+      - pdfdata:/data/pdfs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   web:
     build: ./frontend
     ports:
@@ -34,3 +48,4 @@ services:
 
 volumes:
   pgdata:
+  pdfdata:
