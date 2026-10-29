@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# 로컬 개발 환경을 한 번에 띄운다: DB + 백엔드(샘플 데이터) + Nginx(React)
-#   ./dev.sh up       빌드하고 백그라운드로 실행 → http://localhost:8000
+# 로컬 개발 환경을 한 번에 띄운다: DB + 백엔드 + Nginx(React)
+#   ./dev.sh up       빌드하고 백그라운드로 실행 → http://localhost:8000 (DEV 샘플: APP_DEV_SEED=true ./dev.sh up)
 #   ./dev.sh logs     로그 보기 (예: ./dev.sh logs backend)
-#   ./dev.sh batch    수집 배치를 한 번 실행(.env의 DATA_GO_KR_KEY 필요, DEV 샘플 위에 실제 공고가 쌓인다)
+#   ./dev.sh batch    수집 배치를 한 번 실행(.env의 DATA_GO_KR_KEY 필요, 샘플이 켜져 있으면 그 위에 쌓인다)
 #   ./dev.sh stop     중지만 한다. DB 데이터는 유지된다(다시 ./dev.sh up)
-#   ./dev.sh down     중지하고 DB 데이터도 삭제(샘플은 다음 실행에서 다시 들어간다)
+#   ./dev.sh down     중지하고 DB 데이터도 삭제
 set -euo pipefail
 cd "$(dirname "$0")"
 

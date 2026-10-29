@@ -7,8 +7,9 @@ services:
 
   backend:
     environment:
-      # 시작할 때마다 DEV로 시작하는 샘플 공고를 지우고 다시 넣는다. 운영 DB에서는 절대 켜지 않는다.
       SPRING_PROFILES_ACTIVE: dev
+      # DEV 샘플 공고는 기본으로 넣지 않는다. 필요하면 APP_DEV_SEED=true ./dev.sh up (시작할 때마다 DEV 샘플을 지우고 다시 넣는다). 운영 DB에서는 절대 켜지 않는다.
+      APP_DEV_SEED: ${APP_DEV_SEED:-false}
     ports:
       - "127.0.0.1:8080:8080"    # API를 curl로 바로 확인
 
