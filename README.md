@@ -16,7 +16,7 @@
 Docker만 있으면 된다.
 
 ```bash
-./dev.sh up      # DB + 백엔드(샘플 공고 포함) + Nginx(React)를 빌드해서 실행
+./dev.sh up      # DB + 백엔드 + Nginx(React)를 빌드해서 실행
 ./dev.sh logs    # 로그 (./dev.sh logs backend)
 ./dev.sh stop    # 중지, DB 데이터 유지
 ./dev.sh down    # 중지, DB 데이터 삭제
@@ -28,7 +28,7 @@ Docker만 있으면 된다.
 | <http://localhost:8080/api/notices> | API (내 컴퓨터에서만 접속됨) |
 | `localhost:55432` | PostgreSQL. 사용자·DB `cheongdam`, 비밀번호 `dev` |
 
-- 백엔드가 `dev` 프로파일로 뜨면서 시작할 때마다 번호가 `DEV`로 시작하는 샘플 공고 8건을 다시 넣는다(`backend/src/main/resources/db/seed/dev-seed.sql`). 날짜는 실행한 날 기준이다. 정정·추출 결과가 있는 `/notices/DEV001`, 무순위 `/notices/DEV004`, 마감 `/notices/DEV006` 등을 볼 수 있다.
+- 샘플 공고는 기본으로 넣지 않는다(실제 수집 데이터만 보인다). `APP_DEV_SEED=true ./dev.sh up`으로 띄우면 시작할 때마다 번호가 `DEV`로 시작하는 샘플 공고 8건을 다시 넣는다(`backend/src/main/resources/db/seed/dev-seed.sql`). 날짜는 실행한 날 기준이다. 정정·추출 결과가 있는 `/notices/DEV001`, 무순위 `/notices/DEV004`, 마감 `/notices/DEV006` 등을 볼 수 있다.
 - 코드를 고친 뒤에는 `./dev.sh up`을 다시 실행하면 이미지를 다시 빌드한다. 화면을 계속 고칠 때는 아래 직접 실행이 빠르다.
 
 ### 직접 실행 (코드 수정이 바로 반영됨)
@@ -50,7 +50,7 @@ cd frontend && npm run lint && npm run build
 ## 배포 구성
 
 `docker-compose.yml`이 배포용이다(PostgreSQL, Spring, Nginx). 서버에서는 `docker-compose.dev.yml`, `.env.dev`, `dev.sh`를 쓰지 않는다.
-`dev` 프로파일은 시작할 때 `DEV%` 공고를 지우고 샘플을 넣으므로 운영 DB에서 켜지 않는다.
+`dev` 프로파일과 `APP_DEV_SEED=true`는 시작할 때 `DEV%` 공고를 지우고 샘플을 넣으므로 운영 DB에서 켜지 않는다.
 
 ```bash
 cp .env.example .env        # DB_PASSWORD를 바꾼다
