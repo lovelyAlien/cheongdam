@@ -164,3 +164,64 @@ def test_one_bad_notice_does_not_stop_the_run(conn, tmp_path, world):
     run_id = go(conn, tmp_path, world)
     status, seen, new, error = one(conn, "SELECT status, notice_seen, notice_new, error FROM crawl_run WHERE id=%s", run_id)
     assert (status, seen, new) == ("success", 2, 1) and "2026000009" in error
+
+
+def finish_extraction(conn, no="2026000001", version=1, status="done"):
+    """추출 워커가 끝낸 것처럼 결과를 넣는다."""
+    conn.execute("UPDATE extraction_run SET status=%s, model='m', prompt_version='p1', page_count=40,"
+                 " input_tokens=100000, output_tokens=2000, cost_usd=1.2 WHERE house_manage_no=%s AND version=%s",
+                 (status, no, version))
+    conn.execute("UPDATE notice SET summary_status='done' WHERE house_manage_no=%s", (no,))
+    for category, code, table in ((1, None, None), (6, "resale_limit", '{"rows": [1]}')):
+        item_id = conn.execute(
+            "INSERT INTO extracted_item (house_manage_no, version, category, constraint_code, targets, requirement,"
+            " criteria_table, status) VALUES (%s,%s,%s,%s,'{전체}','요건',%s,'confirmed') RETURNING id",
+            (no, version, category, code, table)).fetchone()[0]
+        conn.execute("INSERT INTO item_evidence (item_id, page, quote, verified) VALUES (%s, 3, '인용', true)", (item_id,))
+    conn.commit()
+
+
+def api_correct(world, winner):
+    world.notices = [apt_notice(PRZWNER_PRESNATN_DE=winner)]
+
+
+def test_api_only_correction_copies_finished_extraction(conn, tmp_path, world):
+    go(conn, tmp_path, world)
+    finish_extraction(conn)
+    api_correct(world, "2026-11-12")
+    go(conn, tmp_path, world)
+    assert one(conn, "SELECT status, reused_from_version, input_tokens, cost_usd::float, model"
+                     " FROM extraction_run WHERE version=2") == ("done", 1, 0, 0.0, "m")
+    assert one(conn, "SELECT count(*) FROM extracted_item WHERE version=2")[0] == 2
+    assert one(conn, "SELECT count(*), bool_and(i.version=2) FROM item_evidence e JOIN extracted_item i"
+                     " ON i.id=e.item_id WHERE i.version=2") == (2, True)
+    assert one(conn, "SELECT criteria_table FROM extracted_item WHERE version=2 AND category=6")[0] == {"rows": [1]}
+    assert one(conn, "SELECT summary_status FROM notice")[0] == "done"  # 다시 정리 중으로 돌아가지 않는다
+
+
+def test_reuse_chain_points_to_original_run(conn, tmp_path, world):
+    go(conn, tmp_path, world)
+    finish_extraction(conn)
+    api_correct(world, "2026-11-12")
+    go(conn, tmp_path, world)
+    api_correct(world, "2026-11-13")
+    go(conn, tmp_path, world)
+    assert one(conn, "SELECT reused_from_version FROM extraction_run WHERE version=3")[0] == 1
+
+
+def test_changed_pdf_is_extracted_again(conn, tmp_path, world):
+    go(conn, tmp_path, world)
+    finish_extraction(conn)
+    world.pdf = b"%PDF-1.4 corrected"
+    go(conn, tmp_path, world)
+    assert one(conn, "SELECT status, reused_from_version FROM extraction_run WHERE version=2") == ("pending", None)
+    assert one(conn, "SELECT count(*) FROM extracted_item WHERE version=2")[0] == 0
+    assert one(conn, "SELECT summary_status FROM notice")[0] == "pending"
+
+
+def test_unfinished_or_failed_previous_extraction_is_not_copied(conn, tmp_path, world):
+    go(conn, tmp_path, world)
+    finish_extraction(conn, status="failed")
+    api_correct(world, "2026-11-12")
+    go(conn, tmp_path, world)
+    assert one(conn, "SELECT status, reused_from_version FROM extraction_run WHERE version=2") == ("pending", None)
