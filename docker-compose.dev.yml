@@ -11,3 +11,8 @@ services:
       SPRING_PROFILES_ACTIVE: dev
     ports:
       - "127.0.0.1:8080:8080"    # API를 curl로 바로 확인
+
+  batch:
+    profiles: ["batch"]          # 기본 ./dev.sh up에서는 띄우지 않는다. 인증키가 있을 때: ./dev.sh batch
+    environment:
+      DB_PASSWORD: dev
