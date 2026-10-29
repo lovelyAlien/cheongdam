@@ -199,7 +199,9 @@ def _insert_version(conn, cfg, no, version, new_hash, got, latest, change_source
         " pdf_path, pdf_status, change_source) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (no, version, now, new_hash, *fields, change_source),
     )
-    _after_pdf(conn, no, version, fields[3], now)
+    # PDF가 이전 버전과 같으면(API만 정정) 추출 결과를 복사한다
+    same_pdf = version > 1 and fields[3] == "ok" and latest[0] == fields[0]
+    _after_pdf(conn, no, version, fields[3], now, reuse_from=version - 1 if same_pdf else None)
 
 
 def _pdf_fields(cfg: Config, no, version, got: pdf.PdfResult, latest) -> tuple:
@@ -219,9 +221,11 @@ def _pdf_fields(cfg: Config, no, version, got: pdf.PdfResult, latest) -> tuple:
     return None, got.file_name, None, got.status
 
 
-def _after_pdf(conn, no, version, pdf_status, now) -> None:
+def _after_pdf(conn, no, version, pdf_status, now, reuse_from=None) -> None:
     """P-06: PDF가 있으면 추출 대기열에 넣고, 없거나 PDF가 아니면 요약 '실패'로 둔다."""
     if pdf_status == "ok":
+        if reuse_from and _copy_extraction(conn, no, reuse_from, version):
+            return  # 이전 추출이 끝나 있으면 대기열에 넣지 않는다. summary_status도 그대로 둔다
         conn.execute(
             "INSERT INTO extraction_run (house_manage_no, version, status, next_attempt_at)"
             " VALUES (%s,%s,'pending',%s) ON CONFLICT DO NOTHING",
@@ -230,3 +234,37 @@ def _after_pdf(conn, no, version, pdf_status, now) -> None:
         conn.execute("UPDATE notice SET summary_status='pending' WHERE house_manage_no=%s", (no,))
     elif pdf_status in ("none", "not_pdf"):
         conn.execute("UPDATE notice SET summary_status='failed' WHERE house_manage_no=%s", (no,))
+
+
+def _copy_extraction(conn, no, from_version, to_version) -> bool:
+    """끝난(done·partial) 추출 결과를 새 버전으로 복사한다. 복사했으면 True.
+    복사본은 토큰·비용을 0으로 두어 비용이 이중으로 잡히지 않게 하고, reused_from_version에 원본을 남긴다."""
+    copied = conn.execute(
+        "INSERT INTO extraction_run (house_manage_no, version, status, attempt, model, prompt_version, page_count,"
+        " input_tokens, output_tokens, cost_usd, needs_review_ratio, started_at, finished_at, reused_from_version)"
+        " SELECT house_manage_no, %s, status, attempt, model, prompt_version, page_count, 0, 0, 0,"
+        " needs_review_ratio, started_at, finished_at, COALESCE(reused_from_version, version)"
+        " FROM extraction_run WHERE house_manage_no=%s AND version=%s AND status IN ('done','partial')",
+        (to_version, no, from_version),
+    ).rowcount
+    if not copied:
+        return False
+    items = conn.execute(
+        "SELECT id, category, constraint_code, targets, requirement, criteria_table, is_general_rule, status,"
+        " sort_order FROM extracted_item WHERE house_manage_no=%s AND version=%s ORDER BY id",
+        (no, from_version),
+    ).fetchall()
+    for old_id, category, code, targets, requirement, table, general, status, order in items:
+        new_id = conn.execute(
+            "INSERT INTO extracted_item (house_manage_no, version, category, constraint_code, targets, requirement,"
+            " criteria_table, is_general_rule, status, sort_order) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            " RETURNING id",
+            (no, to_version, category, code, targets, requirement, None if table is None else Jsonb(table),
+             general, status, order),
+        ).fetchone()[0]
+        conn.execute(
+            "INSERT INTO item_evidence (item_id, page, quote, verified)"
+            " SELECT %s, page, quote, verified FROM item_evidence WHERE item_id=%s",
+            (new_id, old_id),
+        )
+    return True
