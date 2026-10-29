@@ -14,6 +14,16 @@
 
 PDF는 `$PDF_DIR/<공고번호>/v<버전>.pdf`에 저장하고 `notice_version.pdf_path`에는 `PDF_DIR` 기준 상대 경로를 넣는다. API만 바뀌고 PDF가 같으면 새로 쓰지 않고 이전 경로를 가리킨다.
 
+## 추출 워커
+
+`python -m cheongdam_batch --extract`가 `extraction_run`의 `pending` 행을 한 건씩 꺼내 PDF를 Claude에 보내고(`extract.py`), 요건을 `extracted_item`·`item_evidence`에 넣는다. 수집과 따로 돌고(`EXTRACT_POLL_SECONDS`마다 대기열 확인, 기본 300초) `ANTHROPIC_API_KEY`가 필요하다. 로컬에서 한 번만 돌리려면 `./dev.sh extract`.
+
+- 근거 인용은 PDF 쪽별 텍스트(`pypdf`)와 공백·전각 차이를 없애고 비교해 `verified`를 정한다(P-05). 인용이 없거나 확인되지 않거나 요건 숫자가 인용에 없거나 알 수 없는 대상 코드면 `needs_review`.
+- `needs_review`(와 스키마에 넣을 수 없어 버린 줄)가 30%를 넘으면 `failed`로 확정하고 항목은 저장하지 않는다. 6개 분류 중 일부가 응답에 없으면 `partial`, 모두 있으면 `done`.
+- 호출이 실패하거나 응답이 잘리면(`stop_reason`이 `end_turn`이 아님) 1시간 뒤, 6시간 뒤에 다시 시도하고 세 번째 실패에서 `failed`(P-13). 워커가 죽어 1시간 넘게 `running`인 행은 `pending`으로 되돌린다.
+- `notice.summary_status`는 현재 버전(`current_version`)의 추출이 끝날 때만 갱신한다.
+- 지시문(`SYSTEM`·`INSTRUCTION`)을 고치면 `PROMPT_VERSION`을 올린다. 실험 스크립트(`experiments/pdf_extraction/extract.py`)도 같은 지시문을 쓴다.
+
 ## 실행
 
 | 환경변수 | 설명 |

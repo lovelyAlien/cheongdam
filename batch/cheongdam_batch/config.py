@@ -12,14 +12,14 @@ class Config:
     request_interval: float = 1.0  # P-12: 청약홈 요청은 초당 1건 이하
 
     @staticmethod
-    def from_env() -> "Config":
+    def from_env(need_data_key: bool = True) -> "Config":
         dsn = os.environ.get("DB_DSN") or (
             f"host={os.environ.get('DB_HOST', 'db')} port={os.environ.get('DB_PORT', '5432')} "
             f"dbname={os.environ.get('DB_NAME', 'cheongdam')} user={os.environ.get('DB_USER', 'cheongdam')} "
             f"password={os.environ['DB_PASSWORD']}"
         )
-        api_key = os.environ.get("DATA_GO_KR_KEY")
-        if not api_key:
+        api_key = os.environ.get("DATA_GO_KR_KEY", "")
+        if need_data_key and not api_key:
             raise SystemExit("DATA_GO_KR_KEY(공공데이터포털 Decoding 인증키)가 설정되지 않았습니다")
         return Config(
             api_key=api_key,
