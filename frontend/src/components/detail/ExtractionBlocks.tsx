@@ -1,7 +1,24 @@
-import { useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import type { Extraction, ExtractedItem, ScheduleRow } from '../../api/types'
 import { formatDateRange } from '../../lib/format'
 import { CONSTRAINT_LABEL, SUPPLY_TYPE_LABEL } from '../../lib/labels'
+import { TERMS, TERM_NOTE } from '../../lib/terms'
+
+const NoticeUrl = createContext('')
+
+/** 용어 옆 `?`. 눌러서 설명을 펼친다(D-13). 설명이 없는 용어에는 아무것도 그리지 않는다. */
+function TermHelp({ term, label }: { term: string; label: string }) {
+  const [open, setOpen] = useState(false)
+  if (!TERMS[term]) return null
+  return (
+    <>
+      <button type="button" className="help-btn" aria-label={`${label} 설명`} aria-expanded={open} onClick={() => setOpen(!open)}>
+        ?
+      </button>
+      {open && <p className="hint">{TERMS[term]}. {TERM_NOTE}</p>}
+    </>
+  )
+}
 
 /** 근거 칩. 쪽 번호가 보이고, 눌러서 원문 인용문을 펼친다(원문 뷰어 S-06 전까지의 대안, 컷 순서 1번). */
 function EvidenceChip({ item, open, onToggle }: { item: ExtractedItem; open: boolean; onToggle: () => void }) {
@@ -17,6 +34,7 @@ function EvidenceChip({ item, open, onToggle }: { item: ExtractedItem; open: boo
 }
 
 function EvidenceQuotes({ item }: { item: ExtractedItem }) {
+  const noticeUrl = useContext(NoticeUrl)
   return (
     <ul className="quotes">
       {item.evidence.map((e, i) => (
@@ -25,6 +43,9 @@ function EvidenceQuotes({ item }: { item: ExtractedItem }) {
           {!e.verified && <span className="review-label"> · 원문과 일치하는지 확인하지 못했어요</span>}
         </li>
       ))}
+      <li>
+        <a href={noticeUrl} target="_blank" rel="noreferrer">청약홈에서 보기 ↗</a>
+      </li>
     </ul>
   )
 }
@@ -60,7 +81,7 @@ export function ExtractionBlocks({ extraction, noticeUrl, noticeType, preferredT
     )
   }
   return (
-    <>
+    <NoticeUrl.Provider value={noticeUrl}>
       {extraction.reprocessing && (
         <p className="banner">
           공고가 정정되어 내용을 다시 정리하고 있어요. 지금 보이는 내용은 정정 전 기준이에요.
@@ -68,7 +89,7 @@ export function ExtractionBlocks({ extraction, noticeUrl, noticeType, preferredT
       )}
       <Constraints extraction={extraction} contract={contract} />
       <Conditions extraction={extraction} noticeType={noticeType} preferredTypes={preferredTypes} />
-    </>
+    </NoticeUrl.Provider>
   )
 }
 
@@ -103,6 +124,7 @@ function Constraints({ extraction, contract }: { extraction: Extraction; contrac
           {groupByCode(items).map((g) => (
             <li key={g.code} className="row">
               <strong>{CONSTRAINT_LABEL[g.code] ?? g.code}</strong>
+              <TermHelp term={g.code} label={CONSTRAINT_LABEL[g.code] ?? g.code} />
               {g.items.map((i) => (
                 <ConstraintValue
                   key={i.id}
@@ -165,6 +187,7 @@ function Conditions({
     .sort((a, b) => (b.households ?? 0) - (a.households ?? 0))[0]
   const [selected, setSelected] = useState(preferred?.code ?? types[0]?.code ?? '')
   // 체크 상태는 브라우저 메모리에만 둔다. 서버, localStorage, sessionStorage에 쓰지 않는다(P-09, D-18).
+  const [helpOf, setHelpOf] = useState<string | null>(null)
   const [checked, setChecked] = useState<Record<string, number[]>>({})
 
   const forType = items.filter((i) => i.targets.includes(ALL) || i.targets.includes(selected))
@@ -188,19 +211,36 @@ function Conditions({
       {types.length > 1 && (
         <div className="chips type-chips" role="tablist" aria-label="공급 유형">
           {types.map((t) => (
-            <button
-              key={t.code}
-              type="button"
-              role="tab"
-              aria-selected={selected === t.code}
-              className={selected === t.code ? 'chip on' : 'chip'}
-              onClick={() => setSelected(t.code)}
-            >
-              {SUPPLY_TYPE_LABEL[t.code] ?? t.code}
-              {t.households != null && t.households > 0 ? ` ${t.households}` : ''}
-            </button>
+            <span key={t.code} className="chip-wrap">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selected === t.code}
+                className={selected === t.code ? 'chip on' : 'chip'}
+                onClick={() => setSelected(t.code)}
+              >
+                {SUPPLY_TYPE_LABEL[t.code] ?? t.code}
+                {t.households != null && t.households > 0 ? ` ${t.households}` : ''}
+              </button>
+              {TERMS[t.code] && (
+                <button
+                  type="button"
+                  className="help-btn"
+                  aria-label={`${SUPPLY_TYPE_LABEL[t.code] ?? t.code} 설명`}
+                  aria-expanded={helpOf === t.code}
+                  onClick={() => setHelpOf(helpOf === t.code ? null : t.code)}
+                >
+                  ?
+                </button>
+              )}
+            </span>
           ))}
         </div>
+      )}
+      {helpOf && (
+        <p className="hint">
+          <strong>{SUPPLY_TYPE_LABEL[helpOf] ?? helpOf}</strong> {TERMS[helpOf]}. {TERM_NOTE}
+        </p>
       )}
       {types.length === 1 && noticeType !== 'general' && (
         <p className="muted small">{SUPPLY_TYPE_LABEL[types[0].code] ?? types[0].code}</p>
