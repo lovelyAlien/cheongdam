@@ -1,0 +1,30 @@
+graph LR
+  subgraph EXT[외부]
+    A[청약홈 분양정보 API<br/>data.go.kr]
+    P[청약홈 모집공고문 PDF]
+    K[카카오맵 SDK/로컬 API]
+    M[NCP Cloud Outbound Mailer]
+  end
+  subgraph VM[NCP VM - Docker Compose]
+    N[web: Nginx + React SPA]
+    S[backend: Spring Boot]
+    B[batch: Python 매일 06/18시]
+    D[(PostgreSQL)]
+    F[(PDF 볼륨)]
+    X[추출 파이프라인<br/>extraction_run]
+  end
+  U[사용자 브라우저]
+  U -->|화면 요청| N
+  N -->|/api 프록시| S
+  U -.->|지도| K
+  S <-->|조회, 구독, 발송 대기| D
+  S -->|알림 메일 발송 잡| M
+  M -.->|이메일| U
+  A -->|공고, 주택형| B
+  P -->|PDF 다운로드| B
+  B -->|공고, 버전, 변경 기록| D
+  B -->|v버전.pdf 저장| F
+  B -->|extraction_run pending| D
+  D --> X
+  F --> X
+  X -->|추출 결과, 근거| D
