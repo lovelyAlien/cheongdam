@@ -10,6 +10,13 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# 루트 .env(키)와 .env.dev(개발 값)를 합쳐 환경변수로 올린다. .env.dev를 나중에 읽어 개발 값이 이긴다.
+# compose는 셸 환경변수를 --env-file보다 먼저 쓰므로 ${VAR}가 여기서 채워진다(VITE_KAKAO_JS_KEY처럼 빌드 때 쓰는 값 포함).
+# docker compose 2.2.x는 --env-file을 두 번 못 받고 .env 값에 공백이 있을 수 있어서, source 대신 한 줄씩 읽는다.
+while IFS='=' read -r key value; do
+  [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && export "$key=$value"
+done < <(cat .env .env.dev 2>/dev/null || true)
+
 compose() {
   docker compose -p cheongdam-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml "$@"
 }
@@ -25,13 +32,13 @@ case "${1:-}" in
     compose logs -f "$@"
     ;;
   batch)
-    compose --profile batch run --rm -e DATA_GO_KR_KEY="$(grep '^DATA_GO_KR_KEY=' .env | cut -d= -f2-)" -e MYHOME_API_KEY="$(grep '^MYHOME_API_KEY=' .env | cut -d= -f2-)" batch python -m cheongdam_batch --once
+    compose --profile batch run --rm batch python -m cheongdam_batch --once
     ;;
   geocode)
-    compose --profile batch run --rm -e KAKAO_REST_KEY="$(grep '^KAKAO_REST_KEY=' .env | cut -d= -f2-)" batch python -m cheongdam_batch --geocode
+    compose --profile batch run --rm batch python -m cheongdam_batch --geocode
     ;;
   extract)
-    compose --profile extract run --rm -e ANTHROPIC_API_KEY="$(grep '^ANTHROPIC_API_KEY=' .env | cut -d= -f2-)" extractor python -m cheongdam_batch --extract --once
+    compose --profile extract run --rm extractor python -m cheongdam_batch --extract --once
     ;;
   stop)
     compose stop
