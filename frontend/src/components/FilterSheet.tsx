@@ -8,6 +8,7 @@ import {
   REGIONS,
   STATUS_OPTIONS,
   SUPPLY_OPTIONS,
+  isPublicSelected,
   toParams,
   type Filters,
 } from '../lib/filters'
@@ -104,6 +105,10 @@ export function FilterSheet({ initial, onApply, onClose, inline = false }: Props
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     inline ? onApply({ ...initial, [key]: value }) : setDraft((d) => ({ ...d, [key]: value }))
   const reset = () => (inline ? onApply({ ...initial, ...DEFAULTS }) : setDraft({ ...initial, ...DEFAULTS }))
+  // 공공분양·공공임대 칩이 켜지면 주택형 단위 필터는 비활성으로 보인다(D-30)
+  const pub = isPublicSelected(draft)
+  const off = pub ? 'off' : undefined
+  const offHint = pub && <p className="hint">공공 공고에는 쓰지 않아요.</p>
   const capitalOn = CAPITAL_AREA.every((r) => draft.region.includes(r))
 
   const body = (
@@ -130,13 +135,14 @@ export function FilterSheet({ initial, onApply, onClose, inline = false }: Props
         <Chips options={REGIONS.map((r) => ({ value: r, label: r }))} selected={draft.region} onChange={(v) => set('region', v)} />
       </section>
 
-      <section>
+      <section className={off}>
         <h3>특별공급 유형</h3>
         <Chips options={SUPPLY_OPTIONS} selected={draft.supply} onChange={(v) => set('supply', v)} withHelp />
-        <p className="hint">무순위·재공급 공고는 특별공급 정보가 없어 제외돼요.</p>
+        <p className="hint">무순위·재공급·공공 공고는 특별공급 정보가 없어 제외돼요.</p>
+        {offHint}
       </section>
 
-      <section>
+      <section className={off}>
         <h3>분양가</h3>
         <div className="range">
           <select
@@ -161,11 +167,13 @@ export function FilterSheet({ initial, onApply, onClose, inline = false }: Props
             ))}
           </select>
         </div>
+        {offHint}
       </section>
 
-      <section>
+      <section className={off}>
         <h3>전용면적</h3>
         <Chips options={AREA_OPTIONS} selected={draft.area} onChange={(v) => set('area', v)} />
+        {offHint}
       </section>
 
       <section>
@@ -173,9 +181,10 @@ export function FilterSheet({ initial, onApply, onClose, inline = false }: Props
         <Chips options={NOTICE_TYPE_OPTIONS} selected={draft.notice_type} onChange={(v) => set('notice_type', v)} withHelp />
       </section>
 
-      <section>
+      <section className={off}>
         <h3>주택 구분</h3>
         <Chips options={HOUSE_KIND_OPTIONS} selected={draft.house_kind} onChange={(v) => set('house_kind', v)} withHelp />
+        {offHint}
       </section>
     </div>
   )

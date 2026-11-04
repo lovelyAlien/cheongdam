@@ -18,7 +18,7 @@ log = logging.getLogger("collect")
 _NOTICE_COLS = [
     "notice_type", "source_api", "name", "region", "region_code", "address", "house_kind", "developer",
     "announced_on", "rcept_start", "rcept_end", "winner_on", "contract_start", "contract_end", "move_in_ym",
-    "total_households", "notice_url", "homepage_url", "phone", "is_regulated",
+    "total_households", "notice_url", "homepage_url", "phone", "is_regulated", "supply_kind", "before_notice_no",
 ]
 _UNIT_COLS = [
     "model_no", "house_ty", "exclusive_area", "supply_area", "top_price_man", "general_count", "special_count",
@@ -92,6 +92,8 @@ def run(cfg: Config, conn: psycopg.Connection, now: datetime | None = None, deps
             errors.append(f"{no}: {e!r}")
         seen += 1
 
+    if mh_notices:
+        _link_successors(conn)
     if listing:  # 목록이 비면 API 이상일 수 있어 '내려간 공고' 판단을 건너뛴다
         seen_nos = {raw["HOUSE_MANAGE_NO"] for _, raw in listing} | {myhome.house_manage_no(r) for r in mh_notices}
         _mark_removed(conn, cfg, seen_nos, now, keep_myhome=not mh_notices)
@@ -182,6 +184,15 @@ def _process(cfg, conn, source, raw, unit_raws, now, throttle, pdf_get) -> str:
         )
         _after_pdf(conn, no, version, fields[3], now)
     return "same"
+
+
+def _link_successors(conn) -> None:
+    """마이홈 정정 공고는 새 번호로 오고 이전 공고 번호가 따라온다. 이전 공고에 후속 번호를 기록해 목록에서 뺀다(E-23)."""
+    conn.execute(
+        "UPDATE notice o SET successor_no = n.house_manage_no FROM notice n"
+        " WHERE n.before_notice_no = o.house_manage_no AND o.successor_no IS DISTINCT FROM n.house_manage_no"
+    )
+    conn.commit()
 
 
 def _process_myhome(cfg, conn, raw, now) -> str:

@@ -188,6 +188,55 @@ class NoticeApiTest {
 				.andExpect(status().isBadRequest());
 	}
 
+	private void publicNotice(String no, String type, String supplyKind, String successor, String raw) {
+		jdbc.sql("""
+				INSERT INTO notice (house_manage_no, notice_type, source_api, name, region, developer, supply_kind,
+				    successor_no, announced_on, rcept_start, rcept_end, notice_url, raw, raw_hash,
+				    first_collected_at, last_checked_at)
+				VALUES (:no, :type, :api, :name, '경기', 'LH', :kind, :succ, :announced, :start, :end, 'https://lh',
+				    cast(:raw as jsonb), 'h', now(), now())
+				""")
+				.param("no", no).param("type", type).param("api", type.equals("public_sale") ? "myhome_sale" : "myhome_rent")
+				.param("name", "공공 " + no).param("kind", supplyKind).param("succ", successor)
+				.param("announced", TODAY.minusDays(1)).param("start", TODAY.plusDays(1)).param("end", TODAY.plusDays(2))
+				.param("raw", raw).update();
+	}
+
+	@Test
+	void 공공_공고는_유형_필터로_구분되고_정정으로_대체된_이전_공고는_빠진다() throws Exception {
+		publicNotice("MHR1", "public_rent", "행복주택", "MHR2", "{}");
+		publicNotice("MHR2", "public_rent", "행복주택", null, "{}");
+		publicNotice("MHS1", "public_sale", null, null, "{}");
+
+		mvc.perform(get("/api/notices").param("notice_type", "public_rent"))
+				.andExpect(jsonPath("$.total").value(1))
+				.andExpect(jsonPath("$.items[0].house_manage_no").value("MHR2"))
+				.andExpect(jsonPath("$.items[0].supply_kind").value("행복주택"))
+				.andExpect(jsonPath("$.items[0].provider").value("LH"));
+		mvc.perform(get("/api/notices").param("notice_type", "public_sale"))
+				.andExpect(jsonPath("$.total").value(1));
+		// 일반 분양 필터에는 공공 공고가 섞이지 않는다
+		mvc.perform(get("/api/notices").param("notice_type", "general"))
+				.andExpect(jsonPath("$.items[?(@.house_manage_no =~ /MH.*/)]").isEmpty());
+	}
+
+	@Test
+	void 공공_공고_상세는_출처와_단지_목록을_준다() throws Exception {
+		publicNotice("MHS9", "public_sale", null, null,
+				"{\"rows\":[{\"hsmpNm\":\"A-1블록\",\"fullAdres\":\"경기도 시흥시\",\"sumSuplyCo\":\"100\"},{\"hsmpNm\":\"A-2블록\"}]}");
+
+		mvc.perform(get("/api/notices/MHS9"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.header.source").value("myhome"))
+				.andExpect(jsonPath("$.header.provider").value("LH"))
+				.andExpect(jsonPath("$.complexes[0].name").value("A-1블록"))
+				.andExpect(jsonPath("$.complexes[0].households").value(100))
+				.andExpect(jsonPath("$.complexes[1].address").doesNotExist());
+		mvc.perform(get("/api/notices/N1"))
+				.andExpect(jsonPath("$.header.source").value("applyhome"))
+				.andExpect(jsonPath("$.complexes").isEmpty());
+	}
+
 	private void notice(String no, String type, String kind, String region, String name, Integer startOffset,
 			Integer endOffset) {
 		jdbc.sql("""

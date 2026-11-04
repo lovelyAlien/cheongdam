@@ -305,8 +305,8 @@ export function NoticeListPage() {
 
       {data && data.no_info_excluded > 0 && (
         <div className="banner">
-          주택 구분·특별공급 정보가 없는 무순위·재공급 공고 {data.no_info_excluded}건은 제외했어요.{' '}
-          <button type="button" className="link" onClick={() => update({ ...filters, supply: [], house_kind: [] })}>
+          주택형 정보가 없는 공고(무순위·재공급·공공분양·공공임대) {data.no_info_excluded}건은 제외했어요{' '}
+          <button type="button" className="link" onClick={() => update({ ...filters, supply: [], house_kind: [], price_min: null, price_max: null, area: [] })}>
             포함해서 보기
           </button>
         </div>

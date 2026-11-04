@@ -151,7 +151,9 @@ public class NoticeService {
 				areas.stream().min(BigDecimal::compareTo).map(BigDecimal::doubleValue).orElse(null),
 				areas.stream().max(BigDecimal::compareTo).map(BigDecimal::doubleValue).orElse(null),
 				n.getTotalHouseholds(),
-				supplyTags(units));
+				supplyTags(units),
+				n.getSupplyKind(),
+				n.getDeveloper());
 	}
 
 	/** 특별공급 유형별 세대수를 주택형 전체에서 더해, 1세대 이상인 유형만 많은 순으로 태그로 만든다. */

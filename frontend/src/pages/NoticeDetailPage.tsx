@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fetchNotice, NotFoundError } from '../api/notices'
-import type { NoticeDetail, ScheduleRow, Unit } from '../api/types'
+import type { Complex, NoticeDetail, ScheduleRow, Unit } from '../api/types'
 import { hasUnitFilter, parseFilters, unitMatches, type Filters } from '../lib/filters'
 import { ExtractionBlocks } from '../components/detail/ExtractionBlocks'
 import {
@@ -82,6 +82,7 @@ export function NoticeDetailPage() {
   }
 
   const { header: h, summary: s } = detail
+  const isPublic = h.notice_type === 'public_sale' || h.notice_type === 'public_rent'
   const hasUpcoming = detail.schedule.some((r) => r.state !== 'done')
 
   return (
@@ -93,8 +94,14 @@ export function NoticeDetailPage() {
 
       <p className="disclaimer">공고문을 자동으로 정리한 참고 정보예요. 신청 전 반드시 공고문 원문을 확인하세요.</p>
 
-      {h.removed && (
+      {h.removed ? (
         <p className="banner">청약홈에서 내려간 공고예요. 정보가 정확하지 않을 수 있어요.</p>
+      ) : (
+        h.successor_no && (
+          <p className="banner">
+            <Link to={`/notices/${h.successor_no}`}>정정 공고가 새로 올라왔어요 ›</Link>
+          </p>
+        )
       )}
 
       <header className="detail-head">
@@ -102,17 +109,29 @@ export function NoticeDetailPage() {
           <StatusBadge status={h.status} dDay={h.d_day} />
           {h.notice_type === 'no_rank' && <span className="badge type">무순위</span>}
           {h.notice_type === 'resupply' && <span className="badge type">재공급</span>}
-          {h.is_corrected && <span className="badge corrected">정정</span>}
+          {h.notice_type === 'public_sale' && <span className="badge type">공공분양</span>}
+          {h.notice_type === 'public_rent' && <span className="badge type">공공임대</span>}
+          {h.is_corrected && !isPublic && <span className="badge corrected">정정</span>}
         </div>
         <h1>{h.name}</h1>
         <p className="muted">
-          {[h.house_kind === 'private' ? '민영' : h.house_kind === 'public' ? '국민' : null, h.address ?? h.region]
+          {[
+            isPublic ? h.supply_kind : h.house_kind === 'private' ? '민영' : h.house_kind === 'public' ? '국민' : null,
+            isPublic ? h.provider : null,
+            h.address ?? h.region,
+          ]
             .filter(Boolean)
             .join(' · ')}
         </p>
         <p className="muted small">
           {h.last_checked_at && `마지막 확인 ${formatDateTime(h.last_checked_at)}`}
-          {h.correction_count > 0 && (
+          {h.before_notice_no && (
+            <>
+              {h.last_checked_at && ' · '}
+              <Link to={`/notices/${h.before_notice_no}`}>정정 전 공고 ›</Link>
+            </>
+          )}
+          {!isPublic && h.correction_count > 0 && (
             <>
               {' · '}
               <a href="#changes">정정 {h.correction_count}회</a>
@@ -123,27 +142,27 @@ export function NoticeDetailPage() {
 
       <nav className="anchors" aria-label="섹션 이동">
         <a href="#schedule">일정</a>
-        <a href="#constraints">당첨되면</a>
-        <a href="#conditions">자격 조건</a>
+        {!isPublic && <a href="#constraints">당첨되면</a>}
+        {!isPublic && <a href="#conditions">자격 조건</a>}
         <a href="#units">주택형</a>
       </nav>
 
       <section id="schedule" className="block">
-        <h2>핵심 요약 <span className="source">출처: 청약홈</span></h2>
+        <h2>핵심 요약 <span className="source">출처: {h.source === 'myhome' ? '마이홈포털' : '청약홈'}</span></h2>
         <dl className="facts-list">
           <Fact label="총 세대수">
             {s.total_households != null
               ? `${formatHouseholds(s.total_households)}${s.special_households != null && s.general_households != null ? ` (특별 ${s.special_households.toLocaleString('ko-KR')} · 일반 ${s.general_households.toLocaleString('ko-KR')})` : ''}`
               : null}
           </Fact>
-          <Fact label="분양가">
+          {!isPublic && <Fact label="분양가">
             {s.price_min_man != null && s.price_max_man != null
               ? s.price_min_man === s.price_max_man
                 ? formatPriceMan(s.price_min_man)
                 : `${formatPriceMan(s.price_min_man)} ~ ${formatPriceMan(s.price_max_man)}`
               : null}
-          </Fact>
-          <Fact label="입주 예정">{formatMoveIn(s.move_in_ym)}</Fact>
+          </Fact>}
+          {!isPublic && <Fact label="입주 예정">{formatMoveIn(s.move_in_ym)}</Fact>}
         </dl>
 
         <h3>일정</h3>
@@ -153,20 +172,33 @@ export function NoticeDetailPage() {
         )}
       </section>
 
-      <ExtractionBlocks
-        extraction={detail.extraction}
-        noticeUrl={h.notice_url}
-        noticeType={h.notice_type}
-        preferredTypes={filters.supply}
-        contract={detail.schedule.find((r) => r.stage === 'contract') ?? null}
-      />
+      {isPublic ? (
+        <>
+          <section id="units" className="block">
+            <h2>{detail.complexes.length > 0 ? '단지' : '주택형별 공급'} <span className="source">출처: 마이홈포털</span></h2>
+            <Complexes complexes={detail.complexes} />
+            <a className="btn" href={h.notice_url} target="_blank" rel="noreferrer">{providerLinkLabel(h.provider)}</a>
+          </section>
+          <p className="muted block">이 공고는 요약을 제공하지 않아요. 공급기관 공고문에서 확인해 주세요.</p>
+        </>
+      ) : (
+        <>
+          <ExtractionBlocks
+            extraction={detail.extraction}
+            noticeUrl={h.notice_url}
+            noticeType={h.notice_type}
+            preferredTypes={filters.supply}
+            contract={detail.schedule.find((r) => r.stage === 'contract') ?? null}
+          />
 
-      <section id="units" className="block">
-        <h2>주택형별 공급 <span className="source">출처: 청약홈</span></h2>
-        <Units units={detail.units} filters={filters} />
-      </section>
+          <section id="units" className="block">
+            <h2>주택형별 공급 <span className="source">출처: 청약홈</span></h2>
+            <Units units={detail.units} filters={filters} />
+          </section>
+        </>
+      )}
 
-      {detail.changes.length > 0 && (
+      {!isPublic && detail.changes.length > 0 && (
         <section id="changes" className="block">
           <h2>정정 이력</h2>
           <ul className="rows">
@@ -189,7 +221,7 @@ export function NoticeDetailPage() {
       )}
 
       <div className="actions">
-        <a className="btn primary" href={h.notice_url} target="_blank" rel="noreferrer">청약홈에서 보기 ↗</a>
+        <a className="btn primary" href={h.notice_url} target="_blank" rel="noreferrer">{h.source === 'myhome' ? providerLinkLabel(h.provider) : '청약홈에서 보기 ↗'}</a>
       </div>
 
       <footer className="footer">
@@ -232,6 +264,23 @@ function Timeline({ rows }: { rows: ScheduleRow[] }) {
         </li>
       ))}
     </ol>
+  )
+}
+
+function Complexes({ complexes }: { complexes: Complex[] }) {
+  if (complexes.length === 0) return <p className="muted">주택형과 분양가는 공고문에서 확인해 주세요.</p>
+  return (
+    <ul className="rows">
+      {complexes.map((c, i) => (
+        <li key={i} className="row">
+          <div className="row-head">
+            <strong>{c.name ?? '단지명 확인 필요'}</strong>
+            <span>{c.households != null ? formatHouseholds(c.households) : ''}</span>
+          </div>
+          {c.address && <p className="muted">{c.address}</p>}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -278,4 +327,9 @@ function Units({ units, filters }: { units: Unit[]; filters: Filters }) {
     </ul>
     </>
   )
+}
+
+/** 공공 공고 원문 링크 문구. LH는 청약플러스, 그 밖의 공급기관(지방공사 등)은 기관 이름을 쓴다 */
+function providerLinkLabel(provider: string | null): string {
+  return provider === 'LH' ? 'LH청약플러스에서 보기 ↗' : `${provider ?? '공급기관'} 공고 보기 ↗`
 }

@@ -114,6 +114,8 @@ def notice_row(source_api: str, raw: dict) -> dict:
         "homepage_url": raw.get("HMPG_ADRES"),
         "phone": raw.get("MDHS_TELNO"),
         "is_regulated": {"Y": True, "N": False}.get(regulated) if source_api == "apt" else None,
+        "supply_kind": None,
+        "before_notice_no": None,
     }
 
 

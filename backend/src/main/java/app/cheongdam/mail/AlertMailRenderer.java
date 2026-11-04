@@ -111,11 +111,17 @@ public class AlertMailRenderer {
 			badges.add("무순위");
 		} else if (n.noticeType().equals("resupply")) {
 			badges.add("재공급");
+		} else if (n.noticeType().equals("public_sale")) {
+			badges.add("공공분양");
+		} else if (n.noticeType().equals("public_rent")) {
+			badges.add("공공임대");
 		}
 		String district = District.of(n.address());
 		List<String> facts = new ArrayList<>();
 		facts.add(district == null ? n.region() : n.region() + " " + district);
-		facts.add(price(n.priceMinMan(), n.priceMaxMan()));
+		if (!n.noticeType().startsWith("public_")) { // 공공 공고는 분양가 정보가 없다
+			facts.add(price(n.priceMinMan(), n.priceMaxMan()));
+		}
 		String area = area(n.areaMin(), n.areaMax());
 		if (area != null) {
 			facts.add(area);
