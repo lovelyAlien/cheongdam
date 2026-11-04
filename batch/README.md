@@ -14,6 +14,16 @@
 
 PDF는 `$PDF_DIR/<공고번호>/v<버전>.pdf`에 저장하고 `notice_version.pdf_path`에는 `PDF_DIR` 기준 상대 경로를 넣는다. API만 바뀌고 PDF가 같으면 새로 쓰지 않고 이전 경로를 가리킨다.
 
+## 마이홈 수집 (공공분양·공공임대)
+
+`MYHOME_API_KEY`(국토교통부 마이홈포털 공공주택 모집공고, 청약홈과 다른 키)가 있으면 같은 수집 실행에서 `myhome.py`로 공공분양·공공임대 공고도 받는다(기획서 D-30). 키가 없으면 건너뛴다.
+
+- 공고ID(`pblancId`) 하나가 `notice` 한 건이다. 번호는 공공분양 `MHS<id>`, 공공임대 `MHR<id>`. 단지 목록은 `raw`에 둔다.
+- 공공분양은 `general` + `public`, 공공임대는 `public_rent`로 저장한다. 접수 기간은 `beginDe`·`endDe`, 지역은 청약홈과 같은 약칭으로 맞춘다.
+- 응답에 PDF와 주택형이 없어 `notice_version.pdf_status`는 `none`, 요약은 `failed`(원문 링크만 보여 줌)로 둔다. `notice_change`(무엇이 바뀌었나)는 만들지 않는다.
+- 정정은 같은 번호 덮어쓰기가 아니라 새 공고ID가 `beforePblancId`로 이전 공고를 가리킨다. 지금은 둘 다 별도 공고로 들어간다.
+- 마이홈 목록을 못 받은 실행(키 없음·조회 실패·빈 목록)에서는 마이홈 공고를 '내려간 공고'로 보지 않는다.
+
 ## 추출 워커
 
 `python -m cheongdam_batch --extract`가 `extraction_run`의 `pending` 행을 한 건씩 꺼내 PDF를 Claude에 보내고(`extract.py`), 요건을 `extracted_item`·`item_evidence`에 넣는다. 수집과 따로 돌고(`EXTRACT_POLL_SECONDS`마다 대기열 확인, 기본 300초) `ANTHROPIC_API_KEY`가 필요하다. 로컬에서 한 번만 돌리려면 `./dev.sh extract`.

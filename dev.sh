@@ -24,7 +24,7 @@ case "${1:-}" in
     compose logs -f "$@"
     ;;
   batch)
-    compose --profile batch run --rm -e DATA_GO_KR_KEY="$(grep '^DATA_GO_KR_KEY=' .env | cut -d= -f2-)" batch python -m cheongdam_batch --once
+    compose --profile batch run --rm -e DATA_GO_KR_KEY="$(grep '^DATA_GO_KR_KEY=' .env | cut -d= -f2-)" -e MYHOME_API_KEY="$(grep '^MYHOME_API_KEY=' .env | cut -d= -f2-)" batch python -m cheongdam_batch --once
     ;;
   extract)
     compose --profile extract run --rm -e ANTHROPIC_API_KEY="$(grep '^ANTHROPIC_API_KEY=' .env | cut -d= -f2-)" extractor python -m cheongdam_batch --extract --once
