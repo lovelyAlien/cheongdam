@@ -1,7 +1,8 @@
+import { API_BASE } from './base'
 import type { NoticeDetail, NoticeList, NoticeMapData } from './types'
 
 export async function fetchNotices(query: URLSearchParams, signal?: AbortSignal): Promise<NoticeList> {
-  const res = await fetch(`/api/notices?${query.toString()}`, { signal })
+  const res = await fetch(`${API_BASE}/api/notices?${query.toString()}`, { signal })
   if (!res.ok) {
     throw new Error(`notices ${res.status}`)
   }
@@ -11,7 +12,7 @@ export async function fetchNotices(query: URLSearchParams, signal?: AbortSignal)
 export class NotFoundError extends Error {}
 
 export async function fetchNotice(no: string, signal?: AbortSignal): Promise<NoticeDetail> {
-  const res = await fetch(`/api/notices/${encodeURIComponent(no)}`, { signal })
+  const res = await fetch(`${API_BASE}/api/notices/${encodeURIComponent(no)}`, { signal })
   if (res.status === 404) {
     throw new NotFoundError()
   }
@@ -22,7 +23,7 @@ export async function fetchNotice(no: string, signal?: AbortSignal): Promise<Not
 }
 
 export async function fetchNoticeMap(query: URLSearchParams, signal?: AbortSignal): Promise<NoticeMapData> {
-  const res = await fetch(`/api/notices/map?${query.toString()}`, { signal })
+  const res = await fetch(`${API_BASE}/api/notices/map?${query.toString()}`, { signal })
   if (!res.ok) {
     throw new Error(`notices/map ${res.status}`)
   }

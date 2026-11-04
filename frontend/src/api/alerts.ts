@@ -1,5 +1,6 @@
 // API.md 5장. 구독 관리는 메일 속 토큰이 권한이다.
 import type { Conditions } from '../lib/alertConditions'
+import { API_BASE } from './base'
 
 export class ApiError extends Error {
   status: number
@@ -15,7 +16,7 @@ export class ApiError extends Error {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init)
+  const res = await fetch(API_BASE + path, init)
   const text = await res.text()
   if (!res.ok) {
     const e = (text ? JSON.parse(text) : {}).error
