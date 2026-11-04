@@ -38,6 +38,21 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  extractor:
+    build: ./batch
+    command: ["python", "-m", "cheongdam_batch", "--extract"]
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: ${DB_PASSWORD}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PDF_DIR: /data/pdfs
+    volumes:
+      - pdfdata:/data/pdfs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   web:
     build: ./frontend
     ports:

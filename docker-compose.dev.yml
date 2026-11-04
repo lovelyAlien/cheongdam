@@ -17,3 +17,8 @@ services:
     profiles: ["batch"]          # 기본 ./dev.sh up에서는 띄우지 않는다. 인증키가 있을 때: ./dev.sh batch
     environment:
       DB_PASSWORD: dev
+
+  extractor:
+    profiles: ["extract"]        # 비용이 드는 Claude 호출이라 기본으로는 띄우지 않는다. 키가 있을 때: ./dev.sh extract
+    environment:
+      DB_PASSWORD: dev
