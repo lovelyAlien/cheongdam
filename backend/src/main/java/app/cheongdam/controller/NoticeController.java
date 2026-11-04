@@ -3,6 +3,7 @@ package app.cheongdam.controller;
 import app.cheongdam.dto.NoticeDetailResponse;
 import app.cheongdam.dto.NoticeFilter;
 import app.cheongdam.dto.NoticeListResponse;
+import app.cheongdam.dto.NoticeMapResponse;
 import app.cheongdam.service.NoticeCalendarService;
 import app.cheongdam.service.NoticeDetailService;
 import app.cheongdam.service.NoticeService;
@@ -42,6 +43,23 @@ public class NoticeController {
 				.header(HttpHeaders.CONTENT_DISPOSITION,
 						ContentDisposition.attachment().filename("cheongdam-" + no + ".ics").build().toString())
 				.body(ics);
+	}
+
+	/** 목록과 같은 필터에 맞는 공고 전체의 좌표와 카드 정보. limit·offset은 쓰지 않는다. */
+	@GetMapping("/map")
+	NoticeMapResponse map(
+			@RequestParam(required = false) String q,
+			@RequestParam(required = false) String status,
+			@RequestParam(required = false) String region,
+			@RequestParam(required = false) String supply,
+			@RequestParam(name = "price_min", required = false) String priceMin,
+			@RequestParam(name = "price_max", required = false) String priceMax,
+			@RequestParam(required = false) String area,
+			@RequestParam(name = "notice_type", required = false) String noticeType,
+			@RequestParam(name = "house_kind", required = false) String houseKind,
+			@RequestParam(required = false) String sort) {
+		return noticeService.map(NoticeFilter.parse(q, status, region, supply, priceMin, priceMax, area, noticeType,
+				houseKind, sort, null, null));
 	}
 
 	@GetMapping

@@ -37,6 +37,16 @@ public class Notice {
 
 	private String address;
 
+	/** 주소 → 좌표. geoAccuracy: exact / district / none, 변환 전이면 null (P-21) */
+	private Double lat;
+
+	private Double lng;
+
+	private String geoAccuracy;
+
+	/** 좌표를 만든 때의 주소 */
+	private String geoAddress;
+
 	/** private / public. 무순위는 null */
 	private String houseKind;
 

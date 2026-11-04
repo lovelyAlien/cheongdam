@@ -106,7 +106,7 @@ public class NoticeDetailService {
 		boolean corrected = n.getLastChangedAt() != null
 				&& n.getLastChangedAt().isAfter(OffsetDateTime.now(clock).minusDays(7));
 		return new Header(n.getHouseManageNo(), n.getName(), n.getNoticeType(), n.getHouseKind(), n.getRegion(),
-				n.getAddress(), status, NoticeStatus.dDay(status, start, end, today), corrected,
+				n.getAddress(), n.getLat(), n.getLng(), n.getGeoAccuracy(), status, NoticeStatus.dDay(status, start, end, today), corrected,
 				n.getCurrentVersion() - 1, ClockConfig.kst(n.getLastCheckedAt()), n.getRemovedAt() != null,
 				n.getNoticeUrl(), n.getHomepageUrl(), n.getPhone());
 	}
