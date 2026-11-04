@@ -106,3 +106,12 @@ def test_notice_gone_from_myhome_is_marked_removed(conn, tmp_path):
     go(conn, tmp_path, w)
     assert one(conn, "SELECT removed_at IS NOT NULL FROM notice WHERE house_manage_no='MHR21479'") == (True,)
     assert one(conn, "SELECT removed_at IS NOT NULL FROM notice WHERE house_manage_no='MHS1496'") == (False,)
+
+
+def test_config_myhome_key_falls_back_to_data_go_kr_key(monkeypatch):
+    monkeypatch.setenv("DB_PASSWORD", "x")
+    monkeypatch.setenv("DATA_GO_KR_KEY", "one")
+    monkeypatch.delenv("MYHOME_API_KEY", raising=False)
+    assert Config.from_env().myhome_key == "one"
+    monkeypatch.setenv("MYHOME_API_KEY", "two")
+    assert Config.from_env().myhome_key == "two"
