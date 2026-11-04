@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fetchNotice, NotFoundError } from '../api/notices'
 import type { NoticeDetail, ScheduleRow, Unit } from '../api/types'
 import { hasUnitFilter, parseFilters, unitMatches, type Filters } from '../lib/filters'
+import { MiniMap } from '../components/NoticeMap'
 import { ExtractionBlocks } from '../components/detail/ExtractionBlocks'
 import {
   AREA_LABEL,
@@ -120,6 +121,10 @@ export function NoticeDetailPage() {
           )}
         </p>
       </header>
+
+      {h.lat != null && h.lng != null && (h.geo_accuracy === 'exact' || h.geo_accuracy === 'district') && (
+        <MiniMap lat={h.lat} lng={h.lng} name={h.name} accuracy={h.geo_accuracy} />
+      )}
 
       <nav className="anchors" aria-label="섹션 이동">
         <a href="#schedule">일정</a>
