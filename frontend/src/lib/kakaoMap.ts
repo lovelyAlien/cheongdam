@@ -4,6 +4,8 @@ interface KMap {
   setCenter(p: unknown): void
   setLevel(n: number): void
   relayout(): void
+  getLevel(): number
+  getProjection(): { containerPointFromCoords(p: unknown): { x: number; y: number } }
 }
 interface KOverlay {
   setMap(m: KMap | null): void
@@ -13,6 +15,7 @@ export interface KakaoMaps {
   LatLng: new (lat: number, lng: number) => unknown
   LatLngBounds: new () => { extend(p: unknown): void }
   Map: new (el: HTMLElement, o: { center: unknown; level: number; draggable?: boolean; scrollwheel?: boolean }) => KMap
+  event: { addListener(target: unknown, name: string, cb: () => void): void }
   CustomOverlay: new (o: { position: unknown; content: HTMLElement; yAnchor?: number; map: KMap }) => KOverlay
 }
 export type { KMap, KOverlay }
