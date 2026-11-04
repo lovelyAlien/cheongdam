@@ -69,8 +69,8 @@ class MyHomeWorld(World):
         return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": len(items), "item": items}}}).encode()
 
 
-def go(conn, tmp_path, world, key="mh", day=29):
-    cfg = Config("k", "", tmp_path, myhome_key=key, request_interval=0)
+def go(conn, tmp_path, world, day=29):
+    cfg = Config("k", "", tmp_path, request_interval=0)
     return collect.run(cfg, conn, datetime(2026, 10, day, 6, 0, tzinfo=KST),
                        collect.Deps(world.json_get, world.pdf_get, world.myhome_get))
 
@@ -92,14 +92,13 @@ def test_collects_new_changed_and_same(conn, tmp_path):
     assert one(conn, "SELECT count(*) FROM notice_version WHERE house_manage_no='MHS1496'") == (2,)
 
 
-def test_myhome_failure_or_missing_key_does_not_remove_notices(conn, tmp_path):
+def test_myhome_failure_does_not_remove_notices(conn, tmp_path):
     w = MyHomeWorld()
     go(conn, tmp_path, w)
     w.down = True
     go(conn, tmp_path, w)
-    go(conn, tmp_path, w, key="")
     assert one(conn, "SELECT count(*) FROM notice WHERE left(house_manage_no, 2) = 'MH' AND removed_at IS NOT NULL") == (0,)
-    assert "마이홈 목록 조회 실패" in one(conn, "SELECT error FROM crawl_run ORDER BY id DESC OFFSET 1 LIMIT 1")[0]
+    assert "마이홈 목록 조회 실패" in one(conn, "SELECT error FROM crawl_run ORDER BY id DESC LIMIT 1")[0]
 
 
 def test_notice_gone_from_myhome_is_marked_removed(conn, tmp_path):
@@ -109,15 +108,6 @@ def test_notice_gone_from_myhome_is_marked_removed(conn, tmp_path):
     go(conn, tmp_path, w)
     assert one(conn, "SELECT removed_at IS NOT NULL FROM notice WHERE house_manage_no='MHR21479'") == (True,)
     assert one(conn, "SELECT removed_at IS NOT NULL FROM notice WHERE house_manage_no='MHS1496'") == (False,)
-
-
-def test_config_myhome_key_falls_back_to_data_go_kr_key(monkeypatch):
-    monkeypatch.setenv("DB_PASSWORD", "x")
-    monkeypatch.setenv("DATA_GO_KR_KEY", "one")
-    monkeypatch.delenv("MYHOME_API_KEY", raising=False)
-    assert Config.from_env().myhome_key == "one"
-    monkeypatch.setenv("MYHOME_API_KEY", "two")
-    assert Config.from_env().myhome_key == "two"
 
 
 def test_correction_notice_supersedes_previous_one(conn, tmp_path):

@@ -59,14 +59,13 @@ def run(cfg: Config, conn: psycopg.Connection, now: datetime | None = None, deps
 
     seen = new = changed = 0
     errors: list[str] = []
-    # 마이홈(공공분양·공공임대). 키가 없거나 조회가 실패하면 이번에는 건너뛰고, 그 공고들은 '내려간 공고'로 보지 않는다
+    # 마이홈(공공분양·공공임대). 조회가 실패하면 이번에는 건너뛰고, 그 공고들은 '내려간 공고'로 보지 않는다
     mh_notices: list[dict] = []
-    if cfg.myhome_key:
-        try:
-            mh_notices = myhome.fetch_notices(cfg.myhome_key, deps.myhome_get)
-        except Exception as e:
-            log.exception("마이홈 목록 조회 실패")
-            errors.append(f"마이홈 목록 조회 실패: {e!r}")
+    try:
+        mh_notices = myhome.fetch_notices(cfg.api_key, deps.myhome_get)
+    except Exception as e:
+        log.exception("마이홈 목록 조회 실패")
+        errors.append(f"마이홈 목록 조회 실패: {e!r}")
     for source, raw in listing:
         no = raw.get("HOUSE_MANAGE_NO")
         try:
@@ -117,7 +116,7 @@ def _finish(conn, run_id, status, seen, new, changed, error) -> None:
 
 def _mark_removed(conn, cfg: Config, seen_nos: set[str], now: datetime, keep_myhome: bool = False) -> None:
     """P-16: 조회 범위 안인데 API에서 사라진 공고는 지우지 않고 removed_at만 기록한다. DEV 샘플은 건드리지 않는다.
-    keep_myhome: 마이홈을 이번에 못 받았으면(키 없음·조회 실패·빈 목록) 마이홈 공고는 판단에서 뺀다."""
+    keep_myhome: 마이홈을 이번에 못 받았으면(조회 실패·빈 목록) 마이홈 공고는 판단에서 뺀다."""
     conn.execute(
         "UPDATE notice SET removed_at=%s WHERE removed_at IS NULL AND house_manage_no NOT LIKE 'DEV%%'"
         + (" AND house_manage_no NOT LIKE 'MH%%'" if keep_myhome else "")
