@@ -33,6 +33,7 @@ export const NOTICE_TYPE_OPTIONS = [
   { value: 'general', label: '일반 분양' },
   { value: 'no_rank', label: '무순위' },
   { value: 'resupply', label: '불법행위 재공급' },
+  { value: 'public_rent', label: '공공임대' },
 ]
 export const HOUSE_KIND_OPTIONS = [
   { value: 'private', label: '민영' },

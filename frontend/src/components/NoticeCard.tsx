@@ -60,6 +60,7 @@ export function NoticeCard({
           <span className={`badge ${badge.cls}`}>{badge.text}</span>
           {n.notice_type === 'no_rank' && <span className="badge type">무순위</span>}
           {n.notice_type === 'resupply' && <span className="badge type">재공급</span>}
+          {n.notice_type === 'public_rent' && <span className="badge type">공공임대</span>}
           {n.is_corrected && <span className="badge corrected">정정</span>}
         </div>
         <div className="card-title">
