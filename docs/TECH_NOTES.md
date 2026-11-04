@@ -89,13 +89,20 @@
 
 | 후보 | 출처 | 확인된 것 | 확인 안 된 것 |
 |---|---|---|---|
-| **국토교통부 마이홈포털 공공주택 모집공고** (1순위) | [15108420](https://www.data.go.kr/data/15108420/openapi.do), `https://apis.data.go.kr/1613000/HWSPR02`, REST·JSON, 실시간, 무료, 이용허락 제한 없음 | 기능 2개: 공공임대 모집공고(국민임대·영구임대·행복주택 등), 공공분양 모집공고. 요청변수는 지역(`brtcCode`, `signguCode`), `numOfRows`, `pageNo`, 임대 `suplyTy` 등, 분양 `houseTy` | 응답 필드(제목·접수일·첨부), SH·GH 공고가 들어 있는지, 공급기관 구분 필드 |
+| **국토교통부 마이홈포털 공공주택 모집공고** (1순위) | [15108420](https://www.data.go.kr/data/15108420/openapi.do), `https://apis.data.go.kr/1613000/HWSPR02`, REST·JSON, 실시간, 무료, 이용허락 제한 없음 | 기능 2개: 공공임대 모집공고(국민임대·영구임대·행복주택 등), 공공분양 모집공고. 요청변수는 지역(`brtcCode`, `signguCode`), `numOfRows`, `pageNo`, 임대 `suplyTy` 등, 분양 `houseTy` | 호출 결과는 아래 "마이홈 API 호출 결과" 참고 |
 | LH 분양임대공고문 | [15058530](https://www.data.go.kr/data/15058530/openapi.do), `https://apis.data.go.kr/B552555/lhLeaseNoticeInfo1`, 무료 | 요청: `PG_SZ`, `PAGE`, `PAN_NM`, `UPP_AIS_TP_CD`(01 토지, 05 분양주택, 06 임대주택, 13 주거복지, 22 상가, 39 신혼희망타운), `CNP_CD`, `PAN_SS`, `PAN_NT_ST_DT`·`CLSG_DT`(필수). 응답: 공고유형명, 세부유형명, `PAN_NM`, 지역명, `PAN_SS`, `DTL_URL`. 공고 상태에 "정정공고중"이 있다 | **응답에 접수 시작·종료일, 게시일, 첨부(PDF) 필드가 없다.** 수정일시도 없다. 일 호출 한도 미기재 |
 | LH 분양임대공고별 공급정보 | [15056765](https://www.data.go.kr/data/15056765/openapi.do), `…/lhLeaseNoticeSplInfo1` | 공급용도, 소재지, 면적, 예정가격. 요청에 `PAN_ID`와 목록 응답의 코드가 필요(2단계 호출) | 공고명·일정·첨부 없음 |
 | LH 사전청약 상세 | [15124603](https://www.data.go.kr/data/15124603/openapi.do) | 접수처·공급정보·공급일정을 준다고만 적혀 있음 | 출력 필드 표 없음 |
 | LH 파일데이터 | [15088708](https://www.data.go.kr/data/15088708/fileData.do) 마이홈포털 공공분양주택 입주자모집공고(PDF), 15088707 임대주택(PDF), 15112255 분양주택(HWP). 수시 자동 갱신 | 공고문 PDF를 받을 수 있는 경로 후보 | 목록·접수일 필드, 파일 URL 구조 |
 | **SH** | 모집공고 공식 API 없음(공공데이터포털·서울 열린데이터광장 확인). 있는 것은 당첨 커트라인, 청년매입임대 주택목록, 자치구별 공급 현황 같은 집계·파일 | - | 공고 목록 페이지 URL, 서버/JS 렌더링, 약관 |
 | **GH** | 주택 입주자 모집공고 API 없음(공공데이터포털·경기데이터드림 확인). 연계데이터 [74942](https://www.data.go.kr/data/74942/linkedData.do) "아파트 분양(임대) 공고 현황"(XML)이 있고 상세는 gico.or.kr을 가리킨다 | - | 74942의 필드·갱신 방식(열어 보지 않음) |
+
+**마이홈 API 호출 결과 (2026-11-04, 실제 호출)**
+- 인증은 마이홈 활용신청으로 받은 키가 청약홈용 키와 달랐다. 기존 청약홈 키는 이 API에서 `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`(403)였다. 출처별로 키를 따로 관리해야 한다(`DATA_GO_KR_KEY`, `MYHOME_API_KEY`).
+- 오퍼레이션: 공공임대 `rsdtRcritNtcList`(178건), 공공분양 `ltRsdtRcritNtcList`(75건). 둘 다 정상 응답.
+- 응답 필드: 공고ID `pblancId`, 공고명, **공급기관명 `suplyInsttNm`**, 상태 `sttusNm`(일반공고/정정공고), 모집공고일, **모집 시작·종료일 `beginDe`·`endDe`**, 당첨자 발표일, 주소, 모집공고 URL, 이전 공고 ID. PDF 첨부 필드는 없다. 접수일과 URL은 확인한 100건에서 비어 있지 않았다.
+- **공급기관은 LH가 대부분이고 SH·GH는 없다.** 공공임대 178건: LH 162, 경상북도개발공사 11, 충북개발공사 2, 광주광역시도시공사·한국자산관리공사·제주개발공사 각 1. 공공분양 75건: LH 73, 광주광역시도시공사·강원개발공사 각 1. 서울(11) 필터 5건에도 SH는 없었다(LH 4, 한국자산관리공사 1).
+- 따라서 SH·GH 공고는 이 API로 받을 수 없다. LH 공고와 일부 지방공사 공고를 받는 출처로 쓸 수 있고, 접수 상태(P-01)는 `beginDe`·`endDe`로 계산할 수 있다. 공고문 PDF는 `url`의 LH 페이지에서 따로 받아야 한다.
 
 **수집 가능 여부**
 - **SH:** `i-sh.co.kr/robots.txt`는 일반 크롤러에게 일부 게시판 경로만 막는다. 그러나 ClaudeBot·GPTBot 같은 AI 봇은 `Disallow: /`다. 홈페이지가 JS 렌더링이라 공고 목록 URL을 찾지 못했다.
