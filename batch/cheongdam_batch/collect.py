@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import psycopg
 from psycopg.types.json import Jsonb
 
-from . import api, http, pdf, transform
+from . import api, geocode, http, pdf, transform
 from .config import Config
 
 KST = ZoneInfo("Asia/Seoul")
@@ -73,6 +73,10 @@ def run(cfg: Config, conn: psycopg.Connection, now: datetime | None = None, deps
 
     if listing:  # 목록이 비면 API 이상일 수 있어 '내려간 공고' 판단을 건너뛴다
         _mark_removed(conn, cfg, {raw["HOUSE_MANAGE_NO"] for _, raw in listing}, now)
+    try:
+        geocode.run(cfg, conn)
+    except Exception:  # 좌표 변환이 수집을 실패시키면 안 된다
+        log.exception("좌표 변환 실패")
     _finish(conn, run_id, "success", seen, new, changed, "\n".join(errors) or None)
     log.info("수집 완료 seen=%d new=%d changed=%d errors=%d", seen, new, changed, len(errors))
     return run_id

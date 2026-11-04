@@ -8,6 +8,7 @@ class Config:
     api_key: str
     db_dsn: str
     pdf_dir: Path
+    kakao_key: str = ""  # 주소 → 좌표(REST 키). 없으면 좌표 변환을 건너뛴다
     window_days: int = 60  # P-11: 모집공고일이 이 기간 안이거나 계약 종료일이 지나지 않은 공고를 다시 조회한다
     request_interval: float = 1.0  # P-12: 청약홈 요청은 초당 1건 이하
 
@@ -24,5 +25,6 @@ class Config:
         return Config(
             api_key=api_key,
             db_dsn=dsn,
+            kakao_key=os.environ.get("KAKAO_REST_KEY", ""),
             pdf_dir=Path(os.environ.get("PDF_DIR", "/data/pdfs")),
         )
