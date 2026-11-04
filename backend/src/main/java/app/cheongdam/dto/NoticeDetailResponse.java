@@ -13,7 +13,8 @@ public record NoticeDetailResponse(
 		List<ScheduleRow> schedule,
 		List<Unit> units,
 		Extraction extraction,
-		List<Change> changes) {
+		List<Change> changes,
+		List<Complex> complexes) {
 
 	public record Header(
 			String houseManageNo,
@@ -33,7 +34,16 @@ public record NoticeDetailResponse(
 			boolean removed,
 			String noticeUrl,
 			String homepageUrl,
-			String phone) {
+			String phone,
+			String supplyKind,
+			String provider,
+			String source,
+			String beforeNoticeNo,
+			String successorNo) {
+	}
+
+	/** 공공 공고의 단지. 청약홈 공고는 비어 있다 */
+	public record Complex(String name, String address, Integer households) {
 	}
 
 	public record Summary(

@@ -52,6 +52,9 @@ class World:
     def pdf_get(self, url):
         return (HTML, {}) if "selectAPT" in url else (self.pdf, {})
 
+    def myhome_get(self, url):  # 마이홈은 비어 있다(실제 호출하지 않도록 항상 바꿔 끼운다)
+        return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": 0}}}).encode()
+
 
 @pytest.fixture
 def world():
@@ -61,7 +64,7 @@ def world():
 def go(conn, tmp_path, world, day=29):
     cfg = Config("k", "", tmp_path, request_interval=0)
     return collect.run(cfg, conn, datetime(2026, 10, day, 6, 0, tzinfo=KST),
-                       collect.Deps(world.json_get, world.pdf_get))
+                       collect.Deps(world.json_get, world.pdf_get, world.myhome_get))
 
 
 def one(conn, sql, *args):

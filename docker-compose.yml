@@ -31,7 +31,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DATA_GO_KR_KEY: ${DATA_GO_KR_KEY:-}
       KAKAO_REST_KEY: ${KAKAO_REST_KEY:-}
-      MYHOME_API_KEY: ${MYHOME_API_KEY:-}
       PDF_DIR: /data/pdfs
     volumes:
       - pdfdata:/data/pdfs

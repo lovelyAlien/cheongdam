@@ -33,6 +33,7 @@ export const NOTICE_TYPE_OPTIONS = [
   { value: 'general', label: '일반 분양' },
   { value: 'no_rank', label: '무순위' },
   { value: 'resupply', label: '불법행위 재공급' },
+  { value: 'public_sale', label: '공공분양' },
   { value: 'public_rent', label: '공공임대' },
 ]
 export const HOUSE_KIND_OPTIONS = [
@@ -127,6 +128,10 @@ export function toDetailParams(f: Filters): string {
   if (f.area.length) p.set('area', f.area.join(','))
   return p.toString()
 }
+
+/** 공공분양·공공임대 칩이 켜져 있으면 주택형 단위 필터는 쓰지 않는다(D-30). */
+export const isPublicSelected = (f: Filters) =>
+  f.notice_type.some((t) => t === 'public_sale' || t === 'public_rent')
 
 export function hasUnitFilter(f: Filters): boolean {
   return f.supply.length > 0 || f.price_min != null || f.price_max != null || f.area.length > 0

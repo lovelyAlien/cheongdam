@@ -16,12 +16,12 @@ PDF는 `$PDF_DIR/<공고번호>/v<버전>.pdf`에 저장하고 `notice_version.p
 
 ## 마이홈 수집 (공공분양·공공임대)
 
-`MYHOME_API_KEY`(국토교통부 마이홈포털 공공주택 모집공고, 청약홈과 다른 키)가 있으면 같은 수집 실행에서 `myhome.py`로 공공분양·공공임대 공고도 받는다(기획서 D-30). 키가 없으면 건너뛴다.
+같은 수집 실행에서 `myhome.py`로 공공분양·공공임대 공고도 받는다(기획서 D-30, 국토교통부 마이홈포털 공공주택 모집공고 API). 청약홈과 같은 `DATA_GO_KR_KEY`를 쓰므로, 두 API를 같은 계정에서 활용신청해 둬야 한다.
 
 - 공고ID(`pblancId`) 하나가 `notice` 한 건이다. 번호는 공공분양 `MHS<id>`, 공공임대 `MHR<id>`. 단지 목록은 `raw`에 둔다.
-- 공공분양은 `general` + `public`, 공공임대는 `public_rent`로 저장한다. 접수 기간은 `beginDe`·`endDe`, 지역은 청약홈과 같은 약칭으로 맞춘다.
+- 공공분양은 `public_sale`, 공공임대는 `public_rent`로 저장한다(주택 구분 `house_kind`은 NULL, 공급유형은 `supply_kind`). 접수 기간은 `beginDe`·`endDe`, 지역은 청약홈과 같은 약칭으로 맞춘다.
 - 응답에 PDF와 주택형이 없어 `notice_version.pdf_status`는 `none`, 요약은 `failed`(원문 링크만 보여 줌)로 둔다. `notice_change`(무엇이 바뀌었나)는 만들지 않는다.
-- 정정은 같은 번호 덮어쓰기가 아니라 새 공고ID가 `beforePblancId`로 이전 공고를 가리킨다. 지금은 둘 다 별도 공고로 들어간다.
+- 정정은 같은 번호 덮어쓰기가 아니라 새 공고ID가 `beforePblancId`로 이전 공고를 가리킨다. 새 공고는 `before_notice_no`를 갖고, 이전 공고에는 `successor_no`를 기록해 목록·지도·알림에서 뺀다(상세는 열린다, E-23).
 - 마이홈 목록을 못 받은 실행(키 없음·조회 실패·빈 목록)에서는 마이홈 공고를 '내려간 공고'로 보지 않는다.
 
 ## 추출 워커

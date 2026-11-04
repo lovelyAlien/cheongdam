@@ -1,6 +1,6 @@
 // API.md 2장의 응답. 필드 이름은 서버와 같은 snake_case다.
 export type NoticeStatus = 'upcoming' | 'open' | 'closed' | 'unknown'
-export type NoticeType = 'general' | 'no_rank' | 'resupply' | 'public_rent'
+export type NoticeType = 'general' | 'no_rank' | 'resupply' | 'public_sale' | 'public_rent'
 
 export interface SupplyTag {
   code: string
@@ -26,6 +26,10 @@ export interface NoticeItem {
   area_max: number | null
   total_households: number | null
   supply_tags: SupplyTag[]
+  /** 공공 공고의 공급유형(행복주택 등). 공공분양은 null */
+  supply_kind: string | null
+  /** 공공 공고의 공급기관(LH 등) */
+  provider: string | null
 }
 
 export type GeoAccuracy = 'exact' | 'district'
@@ -80,6 +84,13 @@ export interface NoticeDetail {
     lat: number | null
     lng: number | null
     geo_accuracy: GeoAccuracy | 'none' | null
+    supply_kind: string | null
+    provider: string | null
+    source: 'applyhome' | 'myhome'
+    /** 정정 전 공고 번호 */
+    before_notice_no: string | null
+    /** 이 공고를 대체한 정정 공고 번호 */
+    successor_no: string | null
   }
   summary: {
     total_households: number | null
@@ -91,8 +102,15 @@ export interface NoticeDetail {
   }
   schedule: ScheduleRow[]
   units: Unit[]
+  complexes: Complex[]
   extraction: Extraction
   changes: Change[]
+}
+
+export interface Complex {
+  name: string | null
+  address: string | null
+  households: number | null
 }
 
 export interface ScheduleRow {

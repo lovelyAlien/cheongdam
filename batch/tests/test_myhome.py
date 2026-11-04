@@ -31,12 +31,15 @@ def test_group_by_notice_and_notice_row():
     [n] = myhome.group("sale", rows)
     assert [r["houseSn"] for r in n["rows"]] == ["1", "2"]
     r = myhome.notice_row(n)
-    assert (r["house_manage_no"], r["notice_type"], r["source_api"], r["house_kind"]) == ("MHS1496", "general", "myhome_sale", "public")
+    assert (r["house_manage_no"], r["notice_type"], r["source_api"], r["house_kind"]) == ("MHS1496", "public_sale", "myhome_sale", None)
     assert (r["region"], r["developer"], r["total_households"]) == ("경기", "LH", 150)
     assert (r["rcept_start"], r["rcept_end"], r["winner_on"]) == (date(2026, 11, 11), date(2026, 11, 14), date(2026, 11, 19))
     assert [s["stage"] for s in myhome.schedule_rows(r)] == ["general", "winner"]
     rent = myhome.notice_row(myhome.group("rent", [row(pid="21479")])[0])
     assert (rent["house_manage_no"], rent["notice_type"]) == ("MHR21479", "public_rent")
+    assert (r["supply_kind"], r["before_notice_no"]) == (None, None)
+    typed = myhome.notice_row(myhome.group("rent", [row(pid="21479", suplyTyNm="행복주택", beforePblancId="21465")])[0])
+    assert (typed["supply_kind"], typed["before_notice_no"]) == ("행복주택", "MHR21465")
 
 
 def test_fetch_rows_reads_all_pages_and_rejects_error():
@@ -66,8 +69,8 @@ class MyHomeWorld(World):
         return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": len(items), "item": items}}}).encode()
 
 
-def go(conn, tmp_path, world, key="mh", day=29):
-    cfg = Config("k", "", tmp_path, myhome_key=key, request_interval=0)
+def go(conn, tmp_path, world, day=29):
+    cfg = Config("k", "", tmp_path, request_interval=0)
     return collect.run(cfg, conn, datetime(2026, 10, day, 6, 0, tzinfo=KST),
                        collect.Deps(world.json_get, world.pdf_get, world.myhome_get))
 
@@ -75,7 +78,7 @@ def go(conn, tmp_path, world, key="mh", day=29):
 def test_collects_new_changed_and_same(conn, tmp_path):
     w = MyHomeWorld()
     go(conn, tmp_path, w)
-    assert one(conn, "SELECT notice_type, source_api, summary_status, current_version FROM notice WHERE house_manage_no='MHS1496'") == ("general", "myhome_sale", "failed", 1)
+    assert one(conn, "SELECT notice_type, source_api, summary_status, current_version FROM notice WHERE house_manage_no='MHS1496'") == ("public_sale", "myhome_sale", "failed", 1)
     assert one(conn, "SELECT notice_type FROM notice WHERE house_manage_no='MHR21479'") == ("public_rent",)
     assert one(conn, "SELECT count(*) FROM notice_schedule WHERE house_manage_no='MHS1496'") == (2,)
     assert one(conn, "SELECT pdf_status FROM notice_version WHERE house_manage_no='MHS1496'") == ("none",)
@@ -89,14 +92,13 @@ def test_collects_new_changed_and_same(conn, tmp_path):
     assert one(conn, "SELECT count(*) FROM notice_version WHERE house_manage_no='MHS1496'") == (2,)
 
 
-def test_myhome_failure_or_missing_key_does_not_remove_notices(conn, tmp_path):
+def test_myhome_failure_does_not_remove_notices(conn, tmp_path):
     w = MyHomeWorld()
     go(conn, tmp_path, w)
     w.down = True
     go(conn, tmp_path, w)
-    go(conn, tmp_path, w, key="")
     assert one(conn, "SELECT count(*) FROM notice WHERE left(house_manage_no, 2) = 'MH' AND removed_at IS NOT NULL") == (0,)
-    assert "마이홈 목록 조회 실패" in one(conn, "SELECT error FROM crawl_run ORDER BY id DESC OFFSET 1 LIMIT 1")[0]
+    assert "마이홈 목록 조회 실패" in one(conn, "SELECT error FROM crawl_run ORDER BY id DESC LIMIT 1")[0]
 
 
 def test_notice_gone_from_myhome_is_marked_removed(conn, tmp_path):
@@ -106,3 +108,13 @@ def test_notice_gone_from_myhome_is_marked_removed(conn, tmp_path):
     go(conn, tmp_path, w)
     assert one(conn, "SELECT removed_at IS NOT NULL FROM notice WHERE house_manage_no='MHR21479'") == (True,)
     assert one(conn, "SELECT removed_at IS NOT NULL FROM notice WHERE house_manage_no='MHS1496'") == (False,)
+
+
+def test_correction_notice_supersedes_previous_one(conn, tmp_path):
+    w = MyHomeWorld()
+    w.rent = [row(pid="21465", pblancNm="예비입주자 모집공고"),
+              row(pid="21479", pblancNm="[정정공고]예비입주자 모집공고", sttusNm="정정공고", beforePblancId="21465")]
+    go(conn, tmp_path, w)
+    go(conn, tmp_path, w)  # 다시 돌아도 이전 공고가 되살아나지 않는다
+    assert one(conn, "SELECT successor_no, before_notice_no FROM notice WHERE house_manage_no='MHR21465'") == ("MHR21479", None)
+    assert one(conn, "SELECT successor_no, before_notice_no FROM notice WHERE house_manage_no='MHR21479'") == (None, "MHR21465")

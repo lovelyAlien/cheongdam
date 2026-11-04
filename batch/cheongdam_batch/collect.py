@@ -18,7 +18,7 @@ log = logging.getLogger("collect")
 _NOTICE_COLS = [
     "notice_type", "source_api", "name", "region", "region_code", "address", "house_kind", "developer",
     "announced_on", "rcept_start", "rcept_end", "winner_on", "contract_start", "contract_end", "move_in_ym",
-    "total_households", "notice_url", "homepage_url", "phone", "is_regulated",
+    "total_households", "notice_url", "homepage_url", "phone", "is_regulated", "supply_kind", "before_notice_no",
 ]
 _UNIT_COLS = [
     "model_no", "house_ty", "exclusive_area", "supply_area", "top_price_man", "general_count", "special_count",
@@ -59,14 +59,13 @@ def run(cfg: Config, conn: psycopg.Connection, now: datetime | None = None, deps
 
     seen = new = changed = 0
     errors: list[str] = []
-    # 마이홈(공공분양·공공임대). 키가 없거나 조회가 실패하면 이번에는 건너뛰고, 그 공고들은 '내려간 공고'로 보지 않는다
+    # 마이홈(공공분양·공공임대). 조회가 실패하면 이번에는 건너뛰고, 그 공고들은 '내려간 공고'로 보지 않는다
     mh_notices: list[dict] = []
-    if cfg.myhome_key:
-        try:
-            mh_notices = myhome.fetch_notices(cfg.myhome_key, deps.myhome_get)
-        except Exception as e:
-            log.exception("마이홈 목록 조회 실패")
-            errors.append(f"마이홈 목록 조회 실패: {e!r}")
+    try:
+        mh_notices = myhome.fetch_notices(cfg.api_key, deps.myhome_get)
+    except Exception as e:
+        log.exception("마이홈 목록 조회 실패")
+        errors.append(f"마이홈 목록 조회 실패: {e!r}")
     for source, raw in listing:
         no = raw.get("HOUSE_MANAGE_NO")
         try:
@@ -92,6 +91,8 @@ def run(cfg: Config, conn: psycopg.Connection, now: datetime | None = None, deps
             errors.append(f"{no}: {e!r}")
         seen += 1
 
+    if mh_notices:
+        _link_successors(conn)
     if listing:  # 목록이 비면 API 이상일 수 있어 '내려간 공고' 판단을 건너뛴다
         seen_nos = {raw["HOUSE_MANAGE_NO"] for _, raw in listing} | {myhome.house_manage_no(r) for r in mh_notices}
         _mark_removed(conn, cfg, seen_nos, now, keep_myhome=not mh_notices)
@@ -115,7 +116,7 @@ def _finish(conn, run_id, status, seen, new, changed, error) -> None:
 
 def _mark_removed(conn, cfg: Config, seen_nos: set[str], now: datetime, keep_myhome: bool = False) -> None:
     """P-16: 조회 범위 안인데 API에서 사라진 공고는 지우지 않고 removed_at만 기록한다. DEV 샘플은 건드리지 않는다.
-    keep_myhome: 마이홈을 이번에 못 받았으면(키 없음·조회 실패·빈 목록) 마이홈 공고는 판단에서 뺀다."""
+    keep_myhome: 마이홈을 이번에 못 받았으면(조회 실패·빈 목록) 마이홈 공고는 판단에서 뺀다."""
     conn.execute(
         "UPDATE notice SET removed_at=%s WHERE removed_at IS NULL AND house_manage_no NOT LIKE 'DEV%%'"
         + (" AND house_manage_no NOT LIKE 'MH%%'" if keep_myhome else "")
@@ -186,6 +187,15 @@ def _process(cfg, conn, source, raw, unit_raws, now, throttle, pdf_get) -> str:
         )
         _after_pdf(conn, no, version, fields[3], now)
     return "same"
+
+
+def _link_successors(conn) -> None:
+    """마이홈 정정 공고는 새 번호로 오고 이전 공고 번호가 따라온다. 이전 공고에 후속 번호를 기록해 목록에서 뺀다(E-23)."""
+    conn.execute(
+        "UPDATE notice o SET successor_no = n.house_manage_no FROM notice n"
+        " WHERE n.before_notice_no = o.house_manage_no AND o.successor_no IS DISTINCT FROM n.house_manage_no"
+    )
+    conn.commit()
 
 
 def _process_myhome(cfg, conn, raw, now) -> str:

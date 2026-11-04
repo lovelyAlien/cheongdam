@@ -47,11 +47,16 @@ export function NoticeCard({
   selected?: boolean
 }) {
   const badge = statusBadge(n)
-  const facts = [
-    formatPriceRange(n.price_min_man, n.price_max_man),
-    formatAreaRange(n.area_min, n.area_max),
-    formatHouseholds(n.total_households),
-  ].filter(Boolean)
+  const isPublic = n.notice_type === 'public_sale' || n.notice_type === 'public_rent'
+  // 공공 공고는 분양가·면적 값이 없는 것이 정상이라 세대수만 쓰고, 없으면 줄을 숨긴다(D-30)
+  const facts = (isPublic
+    ? [formatHouseholds(n.total_households)]
+    : [
+        formatPriceRange(n.price_min_man, n.price_max_man),
+        formatAreaRange(n.area_min, n.area_max),
+        formatHouseholds(n.total_households),
+      ]
+  ).filter(Boolean)
   const tags = n.supply_tags.slice(0, MAX_TAGS)
   const more = n.supply_tags.length - tags.length
   const schedule = scheduleLine(n)
@@ -63,15 +68,18 @@ export function NoticeCard({
           <span className={`badge ${badge.cls}`}>{badge.text}</span>
           {n.notice_type === 'no_rank' && <span className="badge type">무순위</span>}
           {n.notice_type === 'resupply' && <span className="badge type">재공급</span>}
+          {n.notice_type === 'public_sale' && <span className="badge type">공공분양</span>}
           {n.notice_type === 'public_rent' && <span className="badge type">공공임대</span>}
           {n.is_corrected && <span className="badge corrected">정정</span>}
         </div>
         <div className="card-title">
           <h2>{n.name}</h2>
-          {n.house_kind && <span className="kind">{n.house_kind === 'private' ? '민영' : '국민'}</span>}
+          {isPublic
+            ? n.supply_kind && <span className="kind">{n.supply_kind}</span>
+            : n.house_kind && <span className="kind">{n.house_kind === 'private' ? '민영' : '국민'}</span>}
         </div>
-        <p className="location">{[n.region, n.district].filter(Boolean).join(' ')}</p>
-        <p className="facts">{facts.join(' · ')}</p>
+        <p className="location">{[n.region, n.district].filter(Boolean).join(' ')}{isPublic && n.provider ? ` · ${n.provider}` : ''}</p>
+        {facts.length > 0 && <p className="facts">{facts.join(' · ')}</p>}
         {schedule && <p className="schedule">{schedule}</p>}
         {tags.length > 0 && (
           <p className="tags">

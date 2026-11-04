@@ -1,4 +1,4 @@
-"""국토교통부 마이홈포털 공공주택 모집공고 API(공공분양·공공임대). 인증키는 청약홈과 별개인 MYHOME_API_KEY.
+"""국토교통부 마이홈포털 공공주택 모집공고 API(공공분양·공공임대). 인증키는 청약홈과 같은 DATA_GO_KR_KEY(두 API를 같은 계정에서 활용신청).
 
 한 공고(pblancId)에 단지(houseSn)가 여러 행으로 온다. 공고 하나를 notice 한 건으로 만들고 단지 행은 raw에 둔다.
 공고문 PDF와 주택형 정보는 응답에 없어서 만들지 않는다(원문 링크만 보여 준다).
@@ -85,13 +85,13 @@ def notice_row(raw: dict) -> dict:
     counts = [c for c in (_int(r.get("sumSuplyCo")) for r in rows) if c is not None]
     return {
         "house_manage_no": house_manage_no(raw),
-        "notice_type": "general" if raw["kind"] == "sale" else "public_rent",
+        "notice_type": "public_sale" if raw["kind"] == "sale" else "public_rent",
         "source_api": f"myhome_{raw['kind']}",
         "name": first["pblancNm"],
         "region": region(first),
         "region_code": None,
         "address": first.get("fullAdres") or None,
-        "house_kind": "public",
+        "house_kind": None,  # 청약 분양의 민영/국민 구분은 공공 공고에 쓰지 않는다
         "developer": first.get("suplyInsttNm") or None,
         "announced_on": _date(first["rcritPblancDe"]),
         "rcept_start": min(starts) if starts else None,
@@ -105,6 +105,8 @@ def notice_row(raw: dict) -> dict:
         "homepage_url": first.get("pcUrl") or None,
         "phone": first.get("refrnc") or None,
         "is_regulated": None,
+        "supply_kind": first.get("suplyTyNm") or None,
+        "before_notice_no": PREFIX[raw["kind"]] + first["beforePblancId"] if first.get("beforePblancId") else None,
     }
 
 
