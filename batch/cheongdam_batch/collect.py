@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import psycopg
 from psycopg.types.json import Jsonb
 
-from . import api, geocode, http, pdf, transform
+from . import api, geocode, http, myhome, pdf, transform
 from .config import Config
 
 KST = ZoneInfo("Asia/Seoul")
@@ -33,6 +33,7 @@ class Deps:
 
     json_get: api.Fetch = api._json_get
     pdf_get: pdf.Get = http.get
+    myhome_get: api.Fetch = myhome._json_get
 
 
 def run(cfg: Config, conn: psycopg.Connection, now: datetime | None = None, deps: Deps | None = None) -> int:
@@ -58,6 +59,14 @@ def run(cfg: Config, conn: psycopg.Connection, now: datetime | None = None, deps
 
     seen = new = changed = 0
     errors: list[str] = []
+    # 마이홈(공공분양·공공임대). 키가 없거나 조회가 실패하면 이번에는 건너뛰고, 그 공고들은 '내려간 공고'로 보지 않는다
+    mh_notices: list[dict] = []
+    if cfg.myhome_key:
+        try:
+            mh_notices = myhome.fetch_notices(cfg.myhome_key, deps.myhome_get)
+        except Exception as e:
+            log.exception("마이홈 목록 조회 실패")
+            errors.append(f"마이홈 목록 조회 실패: {e!r}")
     for source, raw in listing:
         no = raw.get("HOUSE_MANAGE_NO")
         try:
@@ -71,8 +80,21 @@ def run(cfg: Config, conn: psycopg.Connection, now: datetime | None = None, deps
             errors.append(f"{no}: {e!r}")
         seen += 1
 
+    for raw in mh_notices:
+        no = myhome.house_manage_no(raw)
+        try:
+            with conn.transaction():
+                result = _process_myhome(cfg, conn, raw, now)
+            new += result == "new"
+            changed += result == "changed"
+        except Exception as e:
+            log.exception("마이홈 공고 처리 실패 %s", no)
+            errors.append(f"{no}: {e!r}")
+        seen += 1
+
     if listing:  # 목록이 비면 API 이상일 수 있어 '내려간 공고' 판단을 건너뛴다
-        _mark_removed(conn, cfg, {raw["HOUSE_MANAGE_NO"] for _, raw in listing}, now)
+        seen_nos = {raw["HOUSE_MANAGE_NO"] for _, raw in listing} | {myhome.house_manage_no(r) for r in mh_notices}
+        _mark_removed(conn, cfg, seen_nos, now, keep_myhome=not mh_notices)
     try:
         geocode.run(cfg, conn)
     except Exception:  # 좌표 변환이 수집을 실패시키면 안 된다
@@ -91,10 +113,13 @@ def _finish(conn, run_id, status, seen, new, changed, error) -> None:
     conn.commit()
 
 
-def _mark_removed(conn, cfg: Config, seen_nos: set[str], now: datetime) -> None:
-    """P-16: 조회 범위 안인데 API에서 사라진 공고는 지우지 않고 removed_at만 기록한다. DEV 샘플은 건드리지 않는다."""
+def _mark_removed(conn, cfg: Config, seen_nos: set[str], now: datetime, keep_myhome: bool = False) -> None:
+    """P-16: 조회 범위 안인데 API에서 사라진 공고는 지우지 않고 removed_at만 기록한다. DEV 샘플은 건드리지 않는다.
+    keep_myhome: 마이홈을 이번에 못 받았으면(키 없음·조회 실패·빈 목록) 마이홈 공고는 판단에서 뺀다."""
     conn.execute(
         "UPDATE notice SET removed_at=%s WHERE removed_at IS NULL AND house_manage_no NOT LIKE 'DEV%%'"
+        + (" AND house_manage_no NOT LIKE 'MH%%'" if keep_myhome else "")
+        +
         " AND NOT (house_manage_no = ANY(%s))"
         " AND (announced_on >= %s OR contract_end >= %s)",
         (now, list(seen_nos), now.date() - timedelta(days=cfg.window_days), now.date()),
@@ -161,6 +186,39 @@ def _process(cfg, conn, source, raw, unit_raws, now, throttle, pdf_get) -> str:
         )
         _after_pdf(conn, no, version, fields[3], now)
     return "same"
+
+
+def _process_myhome(cfg, conn, raw, now) -> str:
+    """마이홈 공고 하나를 반영한다. PDF·주택형이 없어 버전과 일정만 만든다. 반환: new / changed / same."""
+    row = myhome.notice_row(raw)
+    no = row["house_manage_no"]
+    new_hash = myhome.api_hash(raw)
+    existing = conn.execute(
+        "SELECT raw_hash, current_version FROM notice WHERE house_manage_no=%s FOR UPDATE", (no,)
+    ).fetchone()
+    no_pdf, latest = pdf.PdfResult("none"), (None, "pending", None, None)
+    if existing is None:
+        _insert_notice(conn, row, raw, new_hash, now)
+        _replace_myhome_schedule(conn, row)
+        _insert_version(conn, cfg, no, 1, new_hash, no_pdf, latest, None, now)
+        return "new"
+    if existing[0] != new_hash:
+        version = existing[1] + 1
+        _update_notice(conn, row, raw, new_hash, version, now)
+        _replace_myhome_schedule(conn, row)
+        _insert_version(conn, cfg, no, version, new_hash, no_pdf, latest, "api", now)
+        return "changed"
+    conn.execute("UPDATE notice SET last_checked_at=%s, removed_at=NULL WHERE house_manage_no=%s", (now, no))
+    return "same"
+
+
+def _replace_myhome_schedule(conn, row) -> None:
+    no = row["house_manage_no"]
+    conn.execute("DELETE FROM notice_schedule WHERE house_manage_no=%s", (no,))
+    conn.cursor().executemany(
+        "INSERT INTO notice_schedule (house_manage_no, stage, area, start_on, end_on) VALUES (%s,%s,%s,%s,%s)",
+        [(no, s["stage"], s["area"], s["start_on"], s["end_on"]) for s in myhome.schedule_rows(row)],
+    )
 
 
 def _insert_notice(conn, row, raw, new_hash, now) -> None:

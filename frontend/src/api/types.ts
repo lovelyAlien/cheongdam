@@ -1,6 +1,6 @@
 // API.md 2장의 응답. 필드 이름은 서버와 같은 snake_case다.
 export type NoticeStatus = 'upcoming' | 'open' | 'closed' | 'unknown'
-export type NoticeType = 'general' | 'no_rank' | 'resupply'
+export type NoticeType = 'general' | 'no_rank' | 'resupply' | 'public_rent'
 
 export interface SupplyTag {
   code: string
