@@ -37,6 +37,7 @@ public final class NoticeSpecifications {
 		return (root, query, cb) -> {
 			List<Predicate> ps = new ArrayList<>();
 			ps.add(cb.isNull(root.get("removedAt")));
+			ps.add(cb.isNull(root.get("successorNo"))); // 정정 공고로 대체된 이전 공고(E-23)
 
 			// 마감 공고는 접수 종료 1년 이내만(D-02)
 			Expression<LocalDate> end = end(root, cb);
@@ -56,7 +57,7 @@ public final class NoticeSpecifications {
 				ps.add(root.get("region").in(f.region()));
 			}
 			if (onlyNoInfo) {
-				ps.add(root.get("noticeType").in("no_rank", "resupply"));
+				ps.add(root.get("noticeType").in("no_rank", "resupply", "public_sale", "public_rent"));
 			}
 			if (!f.noticeType().isEmpty() && !drop.contains("notice_type")) {
 				ps.add(root.get("noticeType").in(f.noticeType()));

@@ -85,13 +85,13 @@ def notice_row(raw: dict) -> dict:
     counts = [c for c in (_int(r.get("sumSuplyCo")) for r in rows) if c is not None]
     return {
         "house_manage_no": house_manage_no(raw),
-        "notice_type": "general" if raw["kind"] == "sale" else "public_rent",
+        "notice_type": "public_sale" if raw["kind"] == "sale" else "public_rent",
         "source_api": f"myhome_{raw['kind']}",
         "name": first["pblancNm"],
         "region": region(first),
         "region_code": None,
         "address": first.get("fullAdres") or None,
-        "house_kind": "public",
+        "house_kind": None,  # 청약 분양의 민영/국민 구분은 공공 공고에 쓰지 않는다
         "developer": first.get("suplyInsttNm") or None,
         "announced_on": _date(first["rcritPblancDe"]),
         "rcept_start": min(starts) if starts else None,
@@ -105,6 +105,8 @@ def notice_row(raw: dict) -> dict:
         "homepage_url": first.get("pcUrl") or None,
         "phone": first.get("refrnc") or None,
         "is_regulated": None,
+        "supply_kind": first.get("suplyTyNm") or None,
+        "before_notice_no": PREFIX[raw["kind"]] + first["beforePblancId"] if first.get("beforePblancId") else None,
     }
 
 

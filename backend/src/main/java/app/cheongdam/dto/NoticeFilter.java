@@ -25,7 +25,7 @@ public record NoticeFilter(
 	static final Set<String> SUPPLY = Set.of("newlywed", "first_home", "multi_child", "newborn",
 			"elderly_parent", "youth", "institution");
 	static final Set<String> AREA = Set.of("le60", "60to85", "gt85");
-	static final Set<String> NOTICE_TYPE = Set.of("general", "no_rank", "resupply", "public_rent");
+	static final Set<String> NOTICE_TYPE = Set.of("general", "no_rank", "resupply", "public_sale", "public_rent");
 	static final Set<String> HOUSE_KIND = Set.of("private", "public");
 	static final Set<String> SORT = Set.of("deadline", "latest");
 	static final int DEFAULT_LIMIT = 20;
