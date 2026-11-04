@@ -37,11 +37,14 @@ export function NoticeCard({
   notice: n,
   highlight,
   detailQuery = '',
+  selected = false,
 }: {
   notice: NoticeItem
   highlight: string[]
   /** 상세로 함께 넘기는 주택형 단위 필터(toDetailParams) */
   detailQuery?: string
+  /** 지도에서 고른 공고(데스크톱 목록 강조) */
+  selected?: boolean
 }) {
   const badge = statusBadge(n)
   const facts = [
@@ -54,7 +57,7 @@ export function NoticeCard({
   const schedule = scheduleLine(n)
 
   return (
-    <li className="card">
+    <li className={selected ? 'card selected' : 'card'} data-no={n.house_manage_no}>
       <Link to={`/notices/${n.house_manage_no}${detailQuery ? `?${detailQuery}` : ''}`} className="card-link">
         <div className="badges">
           <span className={`badge ${badge.cls}`}>{badge.text}</span>

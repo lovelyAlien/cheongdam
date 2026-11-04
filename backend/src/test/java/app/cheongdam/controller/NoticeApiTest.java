@@ -87,6 +87,25 @@ class NoticeApiTest {
 	}
 
 	@Test
+	void 지도는_좌표를_아는_공고만_핀으로_내리고_모르는_공고는_건수만_센다() throws Exception {
+		jdbc.sql("UPDATE notice SET lat=37.5, lng=127.0, geo_accuracy='exact' WHERE house_manage_no='N1'").update();
+		jdbc.sql("UPDATE notice SET lat=37.56, lng=126.97, geo_accuracy='district' WHERE house_manage_no='N2'").update();
+		jdbc.sql("UPDATE notice SET geo_accuracy='none' WHERE house_manage_no='N4'").update(); // N5는 변환 전(null)
+		mvc.perform(get("/api/notices/map"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.total").value(4))
+				.andExpect(jsonPath("$.unlocated").value(2))
+				.andExpect(jsonPath("$.pins.length()").value(2))
+				.andExpect(jsonPath("$.pins[0].house_manage_no").value("N1")) // 접수 중이 접수 예정보다 앞
+				.andExpect(jsonPath("$.pins[0].accuracy").value("exact"))
+				.andExpect(jsonPath("$.pins[1].accuracy").value("district"))
+				.andExpect(jsonPath("$.items[1].house_manage_no").value("N2"));
+		mvc.perform(get("/api/notices/map").param("region", "서울"))
+				.andExpect(jsonPath("$.total").value(1))
+				.andExpect(jsonPath("$.unlocated").value(0));
+	}
+
+	@Test
 	void 마감_공고는_closed를_고를_때만_나오고_맨_뒤다() throws Exception {
 		mvc.perform(get("/api/notices").param("status", "open,upcoming,closed"))
 				.andExpect(jsonPath("$.total").value(5))

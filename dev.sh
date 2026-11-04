@@ -3,6 +3,7 @@
 #   ./dev.sh up       빌드하고 백그라운드로 실행 → http://localhost:8000 (DEV 샘플: APP_DEV_SEED=true ./dev.sh up)
 #   ./dev.sh logs     로그 보기 (예: ./dev.sh logs backend)
 #   ./dev.sh batch    수집 배치를 한 번 실행(.env의 DATA_GO_KR_KEY 필요, 샘플이 켜져 있으면 그 위에 쌓인다)
+#   ./dev.sh geocode  좌표 없는 공고를 한 번 변환(.env의 KAKAO_REST_KEY 필요, 기존 공고 백필용)
 #   ./dev.sh extract  추출 대기열을 한 번 처리(.env의 ANTHROPIC_API_KEY 필요, Claude 호출 비용이 든다)
 #   ./dev.sh stop     중지만 한다. DB 데이터는 유지된다(다시 ./dev.sh up)
 #   ./dev.sh down     중지하고 DB 데이터도 삭제
@@ -25,6 +26,9 @@ case "${1:-}" in
     ;;
   batch)
     compose --profile batch run --rm -e DATA_GO_KR_KEY="$(grep '^DATA_GO_KR_KEY=' .env | cut -d= -f2-)" -e MYHOME_API_KEY="$(grep '^MYHOME_API_KEY=' .env | cut -d= -f2-)" batch python -m cheongdam_batch --once
+    ;;
+  geocode)
+    compose --profile batch run --rm -e KAKAO_REST_KEY="$(grep '^KAKAO_REST_KEY=' .env | cut -d= -f2-)" batch python -m cheongdam_batch --geocode
     ;;
   extract)
     compose --profile extract run --rm -e ANTHROPIC_API_KEY="$(grep '^ANTHROPIC_API_KEY=' .env | cut -d= -f2-)" extractor python -m cheongdam_batch --extract --once

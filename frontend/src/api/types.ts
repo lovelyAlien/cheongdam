@@ -28,6 +28,22 @@ export interface NoticeItem {
   supply_tags: SupplyTag[]
 }
 
+export type GeoAccuracy = 'exact' | 'district'
+
+export interface MapPin {
+  house_manage_no: string
+  lat: number
+  lng: number
+  accuracy: GeoAccuracy
+}
+
+export interface NoticeMapData {
+  total: number
+  unlocated: number
+  pins: MapPin[]
+  items: NoticeItem[]
+}
+
 export interface Relaxation {
   drop: string
   total: number
@@ -61,6 +77,9 @@ export interface NoticeDetail {
     notice_url: string
     homepage_url: string | null
     phone: string | null
+    lat: number | null
+    lng: number | null
+    geo_accuracy: GeoAccuracy | 'none' | null
   }
   summary: {
     total_households: number | null
