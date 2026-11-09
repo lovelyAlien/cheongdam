@@ -15,9 +15,13 @@ cd "$(dirname "$0")"
 # 나중에 읽은 파일이 이긴다. compose는 셸 환경변수를 --env-file보다 먼저 쓰므로 ${VAR}가 여기서 채워진다
 # (VITE_KAKAO_JS_KEY처럼 빌드 때 쓰는 값 포함). docker compose 2.2.x는 --env-file을 두 번 못 받고
 # .env 값에 공백이 있을 수 있어서, source 대신 한 줄씩 읽는다.
-while IFS='=' read -r key value; do
+# 파일 끝에 줄바꿈이 없어도 마지막 줄을 버리지 않는다(|| [[ -n "$key" ]]). 손으로 채우는 .env.mail의
+# 마지막 줄이 보통 SPRING_MAIL_PASSWORD라, 버리면 SMTP 인증 실패로만 드러난다. 파일 사이도 줄바꿈으로 끊는다.
+while IFS='=' read -r key value || [[ -n "$key" ]]; do
   [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && export "$key=$value"
-done < <(cat .env .env.dev .env.mail 2>/dev/null || true)
+done < <(for f in .env .env.dev .env.mail; do
+  if [ -f "$f" ]; then cat "$f"; echo; fi
+done)
 
 compose() {
   docker compose -p cheongdam-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml "$@"
