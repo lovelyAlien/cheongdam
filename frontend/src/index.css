@@ -147,6 +147,15 @@ a.btn.primary { color: #fff; }
 .chip-wrap { display: inline-flex; align-items: center; gap: 2px; }
 .help-btn { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: 12px; }
 .help-btn[aria-expanded='true'] { border-color: var(--accent); color: var(--accent); }
+/* 터치 기기: 눈에 보이는 크기는 두고 누를 수 있는 영역만 44px로 */
+@media (pointer: coarse) {
+  .chip, .btn, .anchors a, .icon-btn { min-height: 44px; }
+  .icon-btn { min-width: 44px; }
+  .link, .rules summary, .row summary { padding-block: 13px; }
+  .consent input[type='checkbox'] { width: 22px; height: 22px; vertical-align: middle; }
+  .help-btn { position: relative; }
+  .help-btn::after { content: ''; position: absolute; inset: -11px; }
+}
 
 /* ---- 알림 구독 (S-08) ---- */
 .sheet.compact { height: auto; max-height: 92vh; }
@@ -176,3 +185,33 @@ button.evidence[aria-expanded='true'] { background: var(--accent); color: #fff; 
 .target { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 6px; background: var(--line); font-size: 12px; font-weight: 600; }
 .row.hit { background: var(--accent-soft); border-radius: 10px; padding: 8px 10px; border-bottom: none; }
 .star { color: var(--accent); }
+
+/* ---- 지도 (F9) ---- */
+.view-toggle { display: flex; gap: 8px; margin: 12px 0 0; }
+.view-toggle .btn { flex: 1; min-height: 44px; }
+.map-box { position: relative; margin-top: 8px; }
+.map-canvas { width: 100%; height: calc(100vh - 260px); min-height: 360px; border-radius: 14px; overflow: hidden; background: var(--line); isolation: isolate; }
+.map-fail { display: grid; place-items: center; gap: 8px; align-content: center; height: 240px; text-align: center; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.map-empty { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 12px; border-radius: 10px; background: var(--surface); font-size: 14px; }
+.map-pin { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; min-height: 32px; border: 2px solid var(--surface); border-radius: 16px; background: var(--line); color: var(--text); font-size: 12px; font-weight: 700; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,.35); cursor: pointer; }
+.map-pin.open { background: var(--accent); color: #fff; }
+.map-pin.upcoming { background: var(--accent-soft); color: var(--accent); }
+.map-pin.closed, .map-pin.unknown { color: var(--muted); }
+.map-pin.group { background: var(--text); color: var(--bg); }
+.map-pin.sel { outline: 3px solid var(--warn); }
+.map-pin-note { font-weight: 400; font-size: 11px; opacity: .85; }
+.map-sheet { z-index: 30; position: fixed; left: 0; right: 0; bottom: 0; max-height: 60vh; overflow-y: auto; padding: 8px 12px 12px; background: var(--bg); border-radius: 18px 18px 0 0; box-shadow: 0 -2px 12px rgba(0,0,0,.3); }
+.map-sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
+.minimap { margin: 12px 0 0; }
+.minimap-canvas { width: 100%; height: 160px; border-radius: 12px; overflow: hidden; background: var(--line); }
+.minimap .btn { margin-top: 8px; display: inline-block; }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+@media (min-width: 960px) {
+  .list-page.map-view-on { max-width: 1280px; }
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; align-items: start; }
+  .split-map { position: sticky; top: 16px; }
+  .split-map .map-sheet { z-index: 1; position: absolute; max-height: 60%; }
+  .split-map .map-canvas { height: calc(100vh - 120px); }
+}
+/* 공공 공고 칩 선택 시 주택형 단위 필터를 비활성처럼 보이게(D-30). 값은 유지하고 눌러서 바꿀 수도 있다 */
+.sheet-body section.off .chips, .sheet-body section.off .range { opacity: 0.45; }

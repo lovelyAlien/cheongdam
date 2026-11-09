@@ -12,7 +12,7 @@ public final class ConditionsSummary {
 			Map.entry("newborn", "신생아"), Map.entry("elderly_parent", "노부모부양"), Map.entry("youth", "청년"),
 			Map.entry("institution", "기관추천"), Map.entry("le60", "60㎡ 이하"), Map.entry("60to85", "60~85㎡"),
 			Map.entry("gt85", "85㎡ 초과"), Map.entry("general", "일반 분양"), Map.entry("no_rank", "무순위"),
-			Map.entry("resupply", "불법행위 재공급"), Map.entry("private", "민영"), Map.entry("public", "국민"));
+			Map.entry("resupply", "불법행위 재공급"), Map.entry("public_sale", "공공분양"), Map.entry("public_rent", "공공임대"), Map.entry("private", "민영"), Map.entry("public", "국민"));
 
 	private ConditionsSummary() {
 	}

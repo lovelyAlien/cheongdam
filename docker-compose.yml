@@ -30,6 +30,22 @@ services:
       DB_HOST: db
       DB_PASSWORD: ${DB_PASSWORD}
       DATA_GO_KR_KEY: ${DATA_GO_KR_KEY:-}
+      KAKAO_REST_KEY: ${KAKAO_REST_KEY:-}
+      PDF_DIR: /data/pdfs
+    volumes:
+      - pdfdata:/data/pdfs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  extractor:
+    build: ./batch
+    command: ["python", "-m", "cheongdam_batch", "--extract"]
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: ${DB_PASSWORD}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       PDF_DIR: /data/pdfs
     volumes:
       - pdfdata:/data/pdfs
@@ -39,7 +55,10 @@ services:
     restart: unless-stopped
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_KAKAO_JS_KEY: ${VITE_KAKAO_JS_KEY:-}
     ports:
       - "${WEB_PORT:-80}:80"
     depends_on:

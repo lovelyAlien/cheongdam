@@ -23,7 +23,7 @@ public class Notice {
 	@Id
 	private String houseManageNo;
 
-	/** general / no_rank / resupply (P-02) */
+	/** general / no_rank / resupply / public_sale / public_rent (P-02, D-30) */
 	private String noticeType;
 
 	/** apt / remndr */
@@ -36,6 +36,16 @@ public class Notice {
 	private String regionCode;
 
 	private String address;
+
+	/** 주소 → 좌표. geoAccuracy: exact / district / none, 변환 전이면 null (P-21) */
+	private Double lat;
+
+	private Double lng;
+
+	private String geoAccuracy;
+
+	/** 좌표를 만든 때의 주소 */
+	private String geoAddress;
 
 	/** private / public. 무순위는 null */
 	private String houseKind;
@@ -87,6 +97,15 @@ public class Notice {
 
 	/** pending / done / partial / failed (P-06) */
 	private String summaryStatus;
+
+	/** 공급유형(행복주택, 국민임대 등). 마이홈 공공임대만 값이 있다 */
+	private String supplyKind;
+
+	/** 마이홈 정정 공고가 가리키는 이전 공고 번호 */
+	private String beforeNoticeNo;
+
+	/** 이 공고를 대체한 정정 공고 번호. 값이 있으면 목록·알림에서 뺀다(E-23) */
+	private String successorNo;
 
 	private OffsetDateTime createdAt;
 

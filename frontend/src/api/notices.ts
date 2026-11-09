@@ -1,4 +1,4 @@
-import type { NoticeDetail, NoticeList } from './types'
+import type { NoticeDetail, NoticeList, NoticeMapData } from './types'
 
 export async function fetchNotices(query: URLSearchParams, signal?: AbortSignal): Promise<NoticeList> {
   const res = await fetch(`/api/notices?${query.toString()}`, { signal })
@@ -17,6 +17,14 @@ export async function fetchNotice(no: string, signal?: AbortSignal): Promise<Not
   }
   if (!res.ok) {
     throw new Error(`notice ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function fetchNoticeMap(query: URLSearchParams, signal?: AbortSignal): Promise<NoticeMapData> {
+  const res = await fetch(`/api/notices/map?${query.toString()}`, { signal })
+  if (!res.ok) {
+    throw new Error(`notices/map ${res.status}`)
   }
   return res.json()
 }

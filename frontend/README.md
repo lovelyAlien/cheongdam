@@ -30,3 +30,7 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## 지도 (카카오맵)
+
+`VITE_KAKAO_JS_KEY`에 카카오 JavaScript 키를 넣는다(`frontend/.env.local`). 카카오 개발자 콘솔에 접속 도메인(개발은 `http://localhost:5173`)을 등록해야 한다. 키가 없거나 로딩에 실패하면 지도 영역에 안내만 보이고 목록은 그대로 쓸 수 있다.

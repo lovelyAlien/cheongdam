@@ -31,7 +31,9 @@ public record NoticeListResponse(
 			Double areaMin,
 			Double areaMax,
 			Integer totalHouseholds,
-			List<SupplyTag> supplyTags) {
+			List<SupplyTag> supplyTags,
+			String supplyKind,
+			String provider) {
 	}
 
 	public record SupplyTag(String code, int households) {

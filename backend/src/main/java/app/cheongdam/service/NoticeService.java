@@ -11,6 +11,8 @@ import app.cheongdam.dto.NoticeListResponse.Item;
 import app.cheongdam.dto.NoticeListResponse.LastCrawl;
 import app.cheongdam.dto.NoticeListResponse.Relaxation;
 import app.cheongdam.dto.NoticeListResponse.SupplyTag;
+import app.cheongdam.dto.NoticeMapResponse;
+import app.cheongdam.dto.NoticeMapResponse.Pin;
 import app.cheongdam.repository.CrawlRunRepository;
 import app.cheongdam.repository.NoticeRepository;
 import app.cheongdam.repository.NoticeSpecifications;
@@ -42,6 +44,8 @@ public class NoticeService {
 	/** 필터를 하나씩 뺐을 때의 건수를 셀 수 있는 조건 이름(API.md 2장 relaxations). */
 	static final List<String> DROPPABLE = List.of("status", "region", "supply", "price", "area", "notice_type",
 			"house_kind");
+
+	static final int MAP_LIMIT = 500;
 
 	private final NoticeRepository noticeRepository;
 	private final NoticeUnitRepository unitRepository;
@@ -77,6 +81,20 @@ public class NoticeService {
 				? count(f, today, Set.of("supply", "house_kind"), true) : 0;
 		List<Relaxation> relaxations = total == 0 ? relaxations(f, today) : List.of();
 		return new NoticeListResponse(total, f.offset(), items, noInfoExcluded, relaxations, lastCrawl());
+	}
+
+	/** 지도(F9). 좌표를 아는 공고(정확·시군구)만 핀과 카드로 내리고, 모르는 공고는 건수만 센다(P-21). */
+	public NoticeMapResponse map(NoticeFilter f) {
+		LocalDate today = LocalDate.now(clock);
+		// shortcut: 한 번에 MAP_LIMIT건까지, 접수 중·예정이 앞이라 마감이 잘린다. 공고가 수백 건을 넘으면 화면 영역 조회로 바꾼다
+		List<Notice> all = noticeRepository.findAll(
+				NoticeSpecifications.matching(f, today, Set.of(), false).and(NoticeSpecifications.orderedBy(f.sort(), today)),
+				new OffsetLimitRequest(0, MAP_LIMIT)).getContent();
+		List<Notice> located = all.stream().filter(n -> n.getLat() != null && n.getLng() != null
+				&& !"none".equals(n.getGeoAccuracy())).toList();
+		return new NoticeMapResponse(all.size(), all.size() - located.size(),
+				located.stream().map(n -> new Pin(n.getHouseManageNo(), n.getLat(), n.getLng(), n.getGeoAccuracy())).toList(),
+				items(located, today, OffsetDateTime.now(clock)));
 	}
 
 	// ---- 건수 ----
@@ -151,7 +169,9 @@ public class NoticeService {
 				areas.stream().min(BigDecimal::compareTo).map(BigDecimal::doubleValue).orElse(null),
 				areas.stream().max(BigDecimal::compareTo).map(BigDecimal::doubleValue).orElse(null),
 				n.getTotalHouseholds(),
-				supplyTags(units));
+				supplyTags(units),
+				n.getSupplyKind(),
+				n.getDeveloper());
 	}
 
 	/** 특별공급 유형별 세대수를 주택형 전체에서 더해, 1세대 이상인 유형만 많은 순으로 태그로 만든다. */

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import { ApiError, changeConditions } from '../api/alerts'
-import { fetchNotices } from '../api/notices'
-import type { NoticeItem, NoticeList } from '../api/types'
+import { fetchNoticeMap, fetchNotices } from '../api/notices'
+import type { NoticeItem, NoticeList, NoticeMapData } from '../api/types'
 import { FilterSheet } from '../components/FilterSheet'
+import { MapView } from '../components/MapView'
 import { NoticeCard } from '../components/NoticeCard'
 import { SubscribeSheet } from '../components/SubscribeSheet'
 import {
@@ -95,6 +96,8 @@ export function NoticeListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = parseFilters(searchParams)
   const key = toParams(filters).toString()
+  // 보기 전환은 필터가 아니라 화면 상태라 fetch key에는 넣지 않고 URL에만 둔다
+  const view = searchParams.get('view') === 'map' ? 'map' : 'list'
 
   // 불러온 결과는 어떤 요청(key)의 것인지 함께 둔다. 요청이 바뀌면 그 결과는 낡은 것이라 loading으로 본다.
   const [result, setResult] = useState<{ req: string; data: NoticeList | null; items: NoticeItem[]; error: boolean } | null>(null)
@@ -117,9 +120,19 @@ export function NoticeListPage() {
   const [retry, setRetry] = useState(0)
   const loadingMore = useRef(false)
 
+  const withView = useCallback(
+    (p: URLSearchParams, v = view) => {
+      if (v === 'map') p.set('view', 'map')
+      return p
+    },
+    [view],
+  )
+
   useEffect(() => {
-    if (searchParams.has('subscribe')) setSearchParams(toParams(parseFilters(searchParams)), { replace: true })
-  }, [searchParams, setSearchParams])
+    if (searchParams.has('subscribe')) {
+      setSearchParams(withView(toParams(parseFilters(searchParams))), { replace: true })
+    }
+  }, [searchParams, setSearchParams, withView])
 
   const saveEdit = async () => {
     if (!edit) return
@@ -133,8 +146,8 @@ export function NoticeListPage() {
   }
 
   const update = useCallback(
-    (next: Filters) => setSearchParams(toParams(next), { replace: false }),
-    [setSearchParams],
+    (next: Filters) => setSearchParams(withView(toParams(next)), { replace: false }),
+    [setSearchParams, withView],
   )
 
   const req = `${key}#${retry}`
@@ -163,6 +176,31 @@ export function NoticeListPage() {
       })
     return () => ctl.abort()
   }, [key, retry, req, saved])
+
+  // 지도 보기: 같은 필터로 좌표가 있는 공고 전체를 한 번에 받는다
+  const [mapResult, setMapResult] = useState<{ req: string; data: NoticeMapData | null; error: boolean } | null>(null)
+  const [picked, setPicked] = useState<{ key: string; nos: string[] }>({ key: '', nos: [] })
+  useEffect(() => {
+    if (view !== 'map') return
+    const ctl = new AbortController()
+    fetchNoticeMap(new URLSearchParams(key), ctl.signal)
+      .then((r) => setMapResult({ req, data: r, error: false }))
+      .catch((e: unknown) => {
+        if ((e as Error).name === 'AbortError') return
+        setMapResult({ req, data: null, error: true })
+      })
+    return () => ctl.abort()
+  }, [view, key, retry, req])
+  const mapCurrent = mapResult && mapResult.req === req ? mapResult : null
+  const selected = picked.key === key ? picked.nos : []
+  const onSelect = useCallback(
+    (nos: string[]) => {
+      setPicked({ key, nos })
+      // 데스크톱에서는 왼쪽 목록의 같은 공고도 보이게 한다. 아직 불러오지 않은 공고면 카드 패널만 뜬다
+      if (nos[0]) document.querySelector(`[data-no="${nos[0]}"]`)?.scrollIntoView({ block: 'nearest' })
+    },
+    [key],
+  )
 
   // 검색어는 300ms 디바운스 후 URL에 반영
   useEffect(() => {
@@ -222,8 +260,11 @@ export function NoticeListPage() {
   const stale = data?.last_crawl.stale
   const crawlAt = data?.last_crawl.finished_at
 
+  const showList = view === 'list' || desktop
+  const split = view === 'map' && desktop
+
   return (
-    <main className={desktop ? 'list-page desktop' : 'list-page'}>
+    <main className={desktop ? (split ? 'list-page desktop map-view-on' : 'list-page desktop') : 'list-page'}>
       <header className="topbar">
         <h1>청담</h1>
       </header>
@@ -261,6 +302,19 @@ export function NoticeListPage() {
       <div className="list-layout">
       {desktop && <FilterSheet inline initial={filters} onApply={update} />}
       <div className="list-main">
+      <div className="view-toggle" role="group" aria-label="보기 전환">
+        {(['list', 'map'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={view === v}
+            className={view === v ? 'btn primary' : 'btn'}
+            onClick={() => view !== v && setSearchParams(withView(toParams(filters), v), { replace: false })}
+          >
+            {v === 'list' ? '목록' : '지도'}
+          </button>
+        ))}
+      </div>
       <div className="filterbar">
         {!desktop && (
           <button type="button" className="btn filter-btn" onClick={() => setSheetOpen(true)}>
@@ -305,13 +359,15 @@ export function NoticeListPage() {
 
       {data && data.no_info_excluded > 0 && (
         <div className="banner">
-          주택 구분·특별공급 정보가 없는 무순위·재공급 공고 {data.no_info_excluded}건은 제외했어요.{' '}
-          <button type="button" className="link" onClick={() => update({ ...filters, supply: [], house_kind: [] })}>
+          주택형 정보가 없는 공고(무순위·재공급·공공분양·공공임대) {data.no_info_excluded}건은 제외했어요{' '}
+          <button type="button" className="link" onClick={() => update({ ...filters, supply: [], house_kind: [], price_min: null, price_max: null, area: [] })}>
             포함해서 보기
           </button>
         </div>
       )}
 
+      <div className={split ? 'split' : undefined}>
+      {showList && <div className="split-list">
       {error && (
         <div className="state">
           <p>공고를 불러오지 못했어요.</p>
@@ -348,7 +404,13 @@ export function NoticeListPage() {
 
       <ul className="cards">
         {items.map((n) => (
-          <NoticeCard key={n.house_manage_no} notice={n} highlight={filters.supply} detailQuery={toDetailParams(filters)} />
+          <NoticeCard
+            key={n.house_manage_no}
+            notice={n}
+            highlight={filters.supply}
+            detailQuery={toDetailParams(filters)}
+            selected={split && selected.includes(n.house_manage_no)}
+          />
         ))}
       </ul>
 
@@ -357,6 +419,26 @@ export function NoticeListPage() {
           <button type="button" className="btn" onClick={loadMore}>더 보기</button>
         </div>
       )}
+      </div>}
+      {view === 'map' && (
+        <div className="split-map">
+          <MapView
+            data={mapCurrent?.data ?? null}
+            error={mapCurrent?.error ?? false}
+            loading={mapCurrent === null}
+            selected={selected}
+            highlight={filters.supply}
+            detailQuery={toDetailParams(filters)}
+            onSelect={onSelect}
+            onList={() => setSearchParams(withView(toParams(filters), 'list'))}
+            onRetry={() => {
+              setMapResult(null)
+              setRetry((n) => n + 1)
+            }}
+          />
+        </div>
+      )}
+      </div>
 
       </div>
       </div>

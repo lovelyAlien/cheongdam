@@ -11,6 +11,7 @@ import app.cheongdam.domain.SpecialSupply;
 import app.cheongdam.dto.NoticeDetailResponse;
 import app.cheongdam.dto.NoticeDetailResponse.Change;
 import app.cheongdam.dto.NoticeDetailResponse.ChangeItem;
+import app.cheongdam.dto.NoticeDetailResponse.Complex;
 import app.cheongdam.dto.NoticeDetailResponse.Conditions;
 import app.cheongdam.dto.NoticeDetailResponse.Constraints;
 import app.cheongdam.dto.NoticeDetailResponse.Evidence;
@@ -31,6 +32,8 @@ import app.cheongdam.repository.NoticeScheduleRepository;
 import app.cheongdam.repository.NoticeUnitRepository;
 import app.cheongdam.repository.NoticeVersionRepository;
 import app.cheongdam.util.NoticeStatus;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -94,7 +97,8 @@ public class NoticeDetailService {
 				schedule(no, today),
 				units,
 				extraction(n, units),
-				changes(no));
+				changes(no),
+				complexes(n));
 	}
 
 	// ---- 헤더·요약 ----
@@ -106,9 +110,36 @@ public class NoticeDetailService {
 		boolean corrected = n.getLastChangedAt() != null
 				&& n.getLastChangedAt().isAfter(OffsetDateTime.now(clock).minusDays(7));
 		return new Header(n.getHouseManageNo(), n.getName(), n.getNoticeType(), n.getHouseKind(), n.getRegion(),
-				n.getAddress(), status, NoticeStatus.dDay(status, start, end, today), corrected,
+				n.getAddress(), n.getLat(), n.getLng(), n.getGeoAccuracy(), status, NoticeStatus.dDay(status, start, end, today), corrected,
 				n.getCurrentVersion() - 1, ClockConfig.kst(n.getLastCheckedAt()), n.getRemovedAt() != null,
-				n.getNoticeUrl(), n.getHomepageUrl(), n.getPhone());
+				n.getNoticeUrl(), n.getHomepageUrl(), n.getPhone(), n.getSupplyKind(), n.getDeveloper(),
+				n.getSourceApi().startsWith("myhome") ? "myhome" : "applyhome", n.getBeforeNoticeNo(),
+				n.getSuccessorNo());
+	}
+
+	private static final ObjectMapper JSON = new ObjectMapper();
+
+	/** 마이홈 공고의 단지 목록. 수집 때 raw의 rows에 단지 행이 들어 있다. 청약홈 공고와 읽을 수 없는 raw는 빈 목록 */
+	private List<Complex> complexes(Notice n) {
+		if (!n.getSourceApi().startsWith("myhome") || n.getRaw() == null) {
+			return List.of();
+		}
+		try {
+			List<Complex> out = new ArrayList<>();
+			for (JsonNode row : JSON.readTree(n.getRaw()).path("rows")) {
+				String households = row.path("sumSuplyCo").asText("");
+				out.add(new Complex(text(row, "hsmpNm"), text(row, "fullAdres"),
+						households.isEmpty() ? null : Integer.valueOf(households)));
+			}
+			return out;
+		} catch (Exception e) { // 표시용이라 읽지 못하면 단지 목록만 비운다
+			return List.of();
+		}
+	}
+
+	private static String text(JsonNode row, String field) {
+		String v = row.path(field).asText("");
+		return v.isEmpty() ? null : v;
 	}
 
 	private Summary summary(Notice n, List<Unit> units) {

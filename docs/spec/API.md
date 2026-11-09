@@ -131,6 +131,24 @@
 
 ---
 
+## 2-1. 지도용 목록 `GET /api/notices/map`
+
+목록(2장)과 같은 필터 쿼리를 받는다. `limit`·`offset`은 쓰지 않고, 필터에 맞는 공고를 정렬 순서대로 최대 500건 내려 준다(F9-3).
+
+```json
+{ "total": 31, "unlocated": 2,
+  "pins": [{ "house_manage_no": "2026000123", "lat": 37.3, "lng": 127.0, "accuracy": "exact" }],
+  "items": [ /* 2장 items와 같은 모양, pins와 같은 순서 */ ] }
+```
+
+| 필드 | 설명 |
+|---|---|
+| `total` | 필터에 맞는 공고 수(위치를 모르는 공고 포함) |
+| `unlocated` | 좌표가 없어 `pins`에서 빠진 공고 수. 화면이 "위치를 확인할 수 없는 공고 N건"에 쓴다(P-21) |
+| `pins[].accuracy` | `exact`(주소 변환 성공) / `district`(시군구 중심, "대략적 위치") |
+
+상세(3장) `header`에도 `lat`, `lng`, `geo_accuracy`(`exact`/`district`/`none`/`null`)가 들어간다.
+
 ## 3. 공고 상세
 
 `GET /api/notices/{house_manage_no}` — S-03. 한 번에 모든 블록을 준다. 블록 B·C는 추출 상태(P-06)에 따라 비어 있을 수 있다.
@@ -146,6 +164,7 @@
     "house_kind": "private",
     "region": "경기",
     "address": "경기도 수원시 장안구 ○○동 123",
+    "lat": 37.3, "lng": 127.0, "geo_accuracy": "exact",
     "status": "open",
     "d_day": 2,
     "is_corrected": true,
