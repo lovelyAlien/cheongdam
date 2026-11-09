@@ -1,7 +1,7 @@
 # 알림 메일 발송 설계 (ALERT_DELIVERY)
 
-- 작성일: 2026-10-31 / 수정일: 2026-11-03
-- 상태: SMTP 발송기와 커밋 후 발송, 로컬에서 Gmail로 보내 보는 길까지 구현. 파기 배치와 수집 지연 대비가 남음
+- 작성일: 2026-10-31 / 수정일: 2026-11-09
+- 상태: SMTP 발송기와 커밋 후 발송, 수집 지연 대비, 로컬에서 Gmail로 보내 보는 길까지 구현. 파기 배치가 남음
 - 상위 문서: [알림 기획](spec/ALERTS.md) · [DB 스키마 6장](spec/SCHEMA.md#6-알림) · [API 5장](spec/API.md#5-알림-구독) · [일정 5주차](SCHEDULE.md)
 - 범위: "사용자가 저장한 조건에 맞는 공고를 모아 정해진 시각에 메일로 보낸다"를 **운영에서 실제로 동작**시키기까지의 구현 설계
 
@@ -40,7 +40,7 @@
 | **로컬에서 Gmail로 보내 보기** | **됨** | `.env.mail`, `DevAlertDispatchController`, `./dev.sh alert` ([8.3](#83-로컬에서-gmail로-보내-본다)) |
 | 반송·스팸 반영 (E-15) | 수동 운영 | [5장](#5-반송수신-거부-e-15) |
 | 개인정보 파기 배치 (P-09, E-14) | **남음** | [6장](#6-개인정보-파기-배치-p-09-e-14) |
-| 수집 지연 대비 (P-17) | **남음** | [7장](#7-발송-시각-보강-p-17) |
+| **수집 지연 대비 (P-17)** | **됨** | `AlertDispatchJob` ([7장](#7-발송-시각-보강-p-17)) |
 | 발신 도메인 인증 (SPF·DKIM·DMARC) | **남음** | 도메인 등록 후. [8.2](#82-켜는-순서) |
 
 ## 2. 지금 동작하는 흐름
@@ -49,6 +49,7 @@
 |---|---|---|
 | 06:00 / 18:00 | A의 수집 배치가 공고·정정을 넣는다 | P-10 |
 | 07:30 이후 첫 10분 틱 | 수집이 끝나 있으면 구독마다 대상을 `alert_outbox`에 한 행으로 쌓는다 | P-17, P-19 |
+| 09:30 이후 | 수집이 아직 `running`이어도 더 기다리지 않고 쌓는다. 3시간 넘게 도는 수집은 그 전에 죽은 것으로 본다 | [7장](#7-발송-시각-보강-p-17) |
 | 같은 틱부터 10분마다 | **오늘 날짜의** `pending` 대기 메일을 보낸다. 실패하면 1시간 뒤 한 번 더 | P-20 |
 
 - 시각 판단은 `ClockConfig`가 `Clock.system(Asia/Seoul)`을 주고 `@Scheduled(zone="Asia/Seoul")`을 쓴다. 컨테이너 TZ가 UTC여도 07:30은 KST 07:30이다.
@@ -188,7 +189,7 @@ SCHEMA 6장이 "이 파기 배치는 B가 하루 한 번 돌린다"고 적었으
 
 ## 7. 발송 시각 보강 (P-17)
 
-`AlertDispatchJob.tick()`은 `crawlRuns.existsByStatus("running")`이면 적재를 건너뛴다. **수집 배치가 죽으면서 `running` 행을 남기면 알림이 영구히 멈춘다.** `crawl_run`에 `started_at`이 있으므로 한계를 둔다.
+`AlertDispatchJob.tick()`은 수집이 돌고 있으면 적재를 건너뛰고 다음 틱을 기다린다. 그대로 두면 **수집 배치가 죽으면서 `running` 행을 남겼을 때 알림이 영구히 멈춘다.** `crawl_run`의 `started_at`으로 한계를 둔다.
 
 | 상수 | 값 | 뜻 |
 |---|---|---|
@@ -196,7 +197,10 @@ SCHEMA 6장이 "이 파기 배치는 B가 하루 한 번 돌린다"고 적었으
 | `STALE_CRAWL` | 3시간 | 이보다 오래된 `running`은 죽은 것으로 보고 기다리지 않는다 |
 | `DEADLINE` | 09:30 | 이 시각이 지나면 수집 상태와 무관하게 보낸다 |
 
-수집을 기다리지 않고 보낸 날은 `log.warn`을 남긴다.
+수집을 기다리지 않고 쌓은 날은 `log.warn`에 그 수집이 언제부터 `running`인지 남긴다.
+
+- 기다릴지 판단은 `AlertDispatchJob.waitForCrawl(now, runningSince)` 하나로 모았다. `runningSince`는 `crawl_run`에서 **가장 최근에 시작된** `running` 행의 `started_at`이다(`findFirstByStatusOrderByStartedAtDesc`). 죽은 행이 남아 있어도 방금 시작한 수집이 있으면 그것을 기다린다.
+- 발송(`sendDue`)은 이 판단과 무관하게 매 틱 돈다. 적재를 건너뛴 틱에도 어제 설정 문제로 밀린 메일이 나갈 수 있어야 한다.
 
 ---
 
@@ -233,7 +237,7 @@ APP_MAIL_PROVIDER=smtp SPRING_MAIL_USERNAME=... SPRING_MAIL_PASSWORD=... ./gradl
 
 ### 8.3 로컬에서 Gmail로 보내 본다
 
-`./dev.sh up`은 `.env.dev`만 읽고, 그 파일은 git에 올라가 있어 비밀을 넣을 수 없다. **`.env.mail`을 따로 두고 `dev.sh`가 있을 때만 덧씌운다.** `.gitignore`의 `.env.*`가 이 파일을 무시한다(템플릿 `.env.mail.example`만 예외로 추적한다).
+`./dev.sh up`이 읽는 `.env`와 `.env.dev`는 git에 올라가 있어 비밀을 넣을 수 없다. **`.env.mail`을 따로 두고 `dev.sh`가 있을 때만 마지막에 덧씌운다**(`.env` → `.env.dev` → `.env.mail` 순으로 셸 환경변수에 올린다. compose 2.2.x가 `--env-file`을 두 번 못 받기 때문이다). `.gitignore`의 `.env.*`가 이 파일을 무시한다(템플릿 `.env.mail.example`만 예외로 추적한다).
 
 ```bash
 cp .env.mail.example .env.mail     # APP_MAIL_PROVIDER=smtp, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD
@@ -276,6 +280,7 @@ M-01 확인 메일의 링크는 `app.base-url`인 `http://localhost:8000`을 가
 | 실패 분류 | 같은 테스트에서 `classify`에 Spring 예외를 넣는다 | 인증 실패·한도 → `MailProviderException`, 타임아웃 → `TransientMailException` |
 | 해지 트랜잭션 | `AlertUnsubscribeMailFailureTest` — 항상 던지는 `@Primary` 메일러 | 메일이 실패해도 `unsubscribed`가 커밋되고 응답은 200, 이메일도 지워진다 |
 | 설정 오류·묵은 대기 | `AlertDispatchServiceTest` — 설정 오류 뒤 날짜를 어제로 돌리고 다시 적재 | `attempts`가 0, 지난 행은 `superseded`, 메일은 **한 통만** |
+| 수집 대기 한계 | `AlertDispatchJobTest` — 고정 `Clock`과 가짜 `crawl_run` | 도는 수집은 기다리고, 3시간 넘은 `running`과 09:30 이후에는 쌓는다. 07:30 전에는 발송만, 적재는 하루 한 번 |
 | 기존 동작 | 기존 테스트 유지 | 일시 실패 재시도, 10건 제한, 해지된 구독 제외 |
 | 실제 Gmail 발송 | 자동 테스트로 덮지 않는다. [8.3](#83-로컬에서-gmail로-보내-본다)의 수동 절차로 확인한다 — **2026-11-04 확인함** | M-01과 M-02가 오는지, 발신자 이름, 해지 버튼 |
 
