@@ -262,6 +262,23 @@
 
 ## 4. 캘린더·원문 PDF
 
+### 월간 일정 `GET /api/notices/calendar` (S-10)
+
+- 쿼리: `month=YYYY-MM`(필수, 형식이 틀리면 `400 invalid_param`) + 목록(2장)과 같은 필터 쿼리. `status`, `sort`, `limit`, `offset`은 무시한다.
+- 그 달과 하루라도 겹치는 단계별 일정을 내린다. 기간 안의 날마다 펼치는 일은 화면이 한다.
+
+```json
+{
+  "month": "2026-11",
+  "events": [
+    { "house_manage_no": "2026000514", "name": "○○자이 더 센트럴", "stage": "rank1", "area": "local",
+      "start_on": "2026-11-10", "end_on": "2026-11-10" }
+  ]
+}
+```
+
+- `stage`·`area`는 상세의 `schedule`(3장)과 같은 값이다. 정렬은 `start_on`, 같으면 단계 순서.
+
 ### 캘린더 `GET /api/notices/{no}/calendar.ics`
 
 - `Content-Type: text/calendar; charset=utf-8`, `Content-Disposition: attachment; filename="cheongdam-{no}.ics"`.
