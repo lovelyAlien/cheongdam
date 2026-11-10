@@ -5,6 +5,7 @@ import type { Complex, NoticeDetail, ScheduleRow, Unit } from '../api/types'
 import { hasUnitFilter, parseFilters, unitMatches, type Filters } from '../lib/filters'
 import { MiniMap } from '../components/NoticeMap'
 import { ExtractionBlocks } from '../components/detail/ExtractionBlocks'
+import { FavoriteButton } from '../components/FavoriteButton'
 import {
   AREA_LABEL,
   formatDateRange,
@@ -12,7 +13,9 @@ import {
   formatHouseholds,
   formatMoveIn,
   formatPriceMan,
-  formatUnit,
+  formatArea,
+  formatUnitName,
+  toPyeong,
   STAGE_LABEL,
 } from '../lib/format'
 import { SUPPLY_TYPE_LABEL } from '../lib/labels'
@@ -225,7 +228,12 @@ export function NoticeDetailPage() {
         </section>
       )}
 
-      <div className="actions">
+      {/* 하단 고정 바(S-03): 관심 · 캘린더 · 원문 링크 */}
+      <div className="action-bar">
+        <FavoriteButton no={h.house_manage_no} name={h.name} withLabel />
+        {hasUpcoming && (
+          <a className="btn" href={`/api/notices/${h.house_manage_no}/calendar.ics`}>캘린더에 추가</a>
+        )}
         <a className="btn primary" href={h.notice_url} target="_blank" rel="noreferrer">{h.source === 'myhome' ? providerLinkLabel(h.provider) : '청약홈에서 보기 ↗'}</a>
       </div>
 
@@ -303,15 +311,23 @@ function Units({ units, filters }: { units: Unit[]; filters: Filters }) {
         <li key={u.model_no} className={hit ? 'row hit' : 'row'}>
           <div className="row-head">
             <strong>
-              {formatUnit(u.exclusive_area, u.house_ty)}
+              {formatUnitName(u.exclusive_area, u.house_ty)}
+              {u.supply_area != null && <span className="pyeong"> {toPyeong(u.supply_area)}평</span>}
               {hit && <span className="star" title="목록에서 고른 조건을 만족해요" aria-label="조건 만족"> ★</span>}
             </strong>
             <span>{u.top_price_man != null ? formatPriceMan(u.top_price_man) : '공고문 확인'}</span>
           </div>
-          <p className="muted">
-            일반 {u.general_count ?? '-'}
-            {u.special_count != null ? ` · 특별 ${u.special_count}` : ''}
-          </p>
+          <dl className="unit-facts">
+            <div><dt>전용</dt><dd>{formatArea(u.exclusive_area)}</dd></div>
+            {u.supply_area != null && <div><dt>공급</dt><dd>{formatArea(u.supply_area)}</dd></div>}
+            <div>
+              <dt>세대</dt>
+              <dd>
+                {u.general_count == null && u.special_count == null ? '-' : (u.general_count ?? 0) + (u.special_count ?? 0)}
+                <span className="muted"> (일반 {u.general_count ?? '-'}{u.special_count != null ? ` · 특별 ${u.special_count}` : ''})</span>
+              </dd>
+            </div>
+          </dl>
           {u.special_by_type == null ? (
             <p className="muted small">이 공고 유형은 청약홈에서 이 정보를 제공하지 않아요. 공고문에서 확인해 주세요.</p>
           ) : (

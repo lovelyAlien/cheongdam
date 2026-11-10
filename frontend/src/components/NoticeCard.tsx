@@ -1,14 +1,8 @@
 import { Link } from 'react-router-dom'
 import type { NoticeItem } from '../api/types'
 import { labelOf, SUPPLY_OPTIONS } from '../lib/filters'
-import {
-  formatAreaRange,
-  formatDate,
-  formatHouseholds,
-  formatPriceRange,
-} from '../lib/format'
-
-const MAX_TAGS = 3
+import { formatDate, formatPriceRange } from '../lib/format'
+import { FavoriteButton } from './FavoriteButton'
 
 function statusBadge(n: NoticeItem): { text: string; cls: string } {
   switch (n.status) {
@@ -23,6 +17,9 @@ function statusBadge(n: NoticeItem): { text: string; cls: string } {
   }
 }
 
+/** 카드는 한 줄에 분양가와 함께 쓰므로 요일을 뺀다: 10.20 / 2027.01.05 */
+const shortDate = (iso: string) => formatDate(iso).replace(/\(.\)$/, '')
+
 function scheduleLine(n: NoticeItem): string | null {
   if (n.status === 'closed') {
     return n.winner_on ? `당첨자 발표 ${formatDate(n.winner_on)}` : null
@@ -30,9 +27,10 @@ function scheduleLine(n: NoticeItem): string | null {
   if (n.status === 'unknown' || !n.rcept_start || !n.rcept_end) return null
   return n.rcept_start === n.rcept_end
     ? `접수 ${formatDate(n.rcept_start)}`
-    : `접수 ${formatDate(n.rcept_start)} → ${formatDate(n.rcept_end)}`
+    : `접수 ${shortDate(n.rcept_start)} → ${shortDate(n.rcept_end)}`
 }
 
+/** 목록 카드(S-01, D-33): 배지 · 단지명 · 지역·구분 · 분양가·일정 4줄. 나머지는 상세에서 본다. */
 export function NoticeCard({
   notice: n,
   highlight,
@@ -40,6 +38,7 @@ export function NoticeCard({
   selected = false,
 }: {
   notice: NoticeItem
+  /** 필터에서 고른 특별공급 유형. 이 공고에 있는 것만 태그로 보여 준다 */
   highlight: string[]
   /** 상세로 함께 넘기는 주택형 단위 필터(toDetailParams) */
   detailQuery?: string
@@ -48,18 +47,18 @@ export function NoticeCard({
 }) {
   const badge = statusBadge(n)
   const isPublic = n.notice_type === 'public_sale' || n.notice_type === 'public_rent'
-  // 공공 공고는 분양가·면적 값이 없는 것이 정상이라 세대수만 쓰고, 없으면 줄을 숨긴다(D-30)
-  const facts = (isPublic
-    ? [formatHouseholds(n.total_households)]
-    : [
-        formatPriceRange(n.price_min_man, n.price_max_man),
-        formatAreaRange(n.area_min, n.area_max),
-        formatHouseholds(n.total_households),
-      ]
-  ).filter(Boolean)
-  const tags = n.supply_tags.slice(0, MAX_TAGS)
-  const more = n.supply_tags.length - tags.length
-  const schedule = scheduleLine(n)
+  const where = [
+    [n.region, n.district].filter(Boolean).join(' '),
+    isPublic ? n.supply_kind : n.house_kind === 'private' ? '민영' : n.house_kind === 'public' ? '국민' : null,
+    isPublic ? n.provider : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  // 공공 공고는 분양가가 없는 것이 정상이라 `공고문 확인`을 쓰지 않는다(D-30)
+  const line = [isPublic ? null : formatPriceRange(n.price_min_man, n.price_max_man), scheduleLine(n)]
+    .filter(Boolean)
+    .join(' · ')
+  const tags = n.supply_tags.filter((t) => highlight.includes(t.code))
 
   return (
     <li className={selected ? 'card selected' : 'card'} data-no={n.house_manage_no}>
@@ -72,26 +71,18 @@ export function NoticeCard({
           {n.notice_type === 'public_rent' && <span className="badge type">공공임대</span>}
           {n.is_corrected && <span className="badge corrected">정정</span>}
         </div>
-        <div className="card-title">
-          <h2>{n.name}</h2>
-          {isPublic
-            ? n.supply_kind && <span className="kind">{n.supply_kind}</span>
-            : n.house_kind && <span className="kind">{n.house_kind === 'private' ? '민영' : '국민'}</span>}
-        </div>
-        <p className="location">{[n.region, n.district].filter(Boolean).join(' ')}{isPublic && n.provider ? ` · ${n.provider}` : ''}</p>
-        {facts.length > 0 && <p className="facts">{facts.join(' · ')}</p>}
-        {schedule && <p className="schedule">{schedule}</p>}
+        <h2 className="card-name">{n.name}</h2>
+        {where && <p className="location">{where}</p>}
+        {line && <p className="facts">{line}</p>}
         {tags.length > 0 && (
           <p className="tags">
             {tags.map((t) => (
-              <span key={t.code} className={highlight.includes(t.code) ? 'tag hit' : 'tag'}>
-                #{labelOf(SUPPLY_OPTIONS, t.code)}
-              </span>
+              <span key={t.code} className="tag hit">#{labelOf(SUPPLY_OPTIONS, t.code)}</span>
             ))}
-            {more > 0 && <span className="tag">+{more}</span>}
           </p>
         )}
       </Link>
+      <FavoriteButton no={n.house_manage_no} name={n.name} />
     </li>
   )
 }

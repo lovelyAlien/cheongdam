@@ -1,12 +1,16 @@
 package app.cheongdam.controller;
 
+import app.cheongdam.dto.NoticeCalendarResponse;
 import app.cheongdam.dto.NoticeDetailResponse;
 import app.cheongdam.dto.NoticeFilter;
 import app.cheongdam.dto.NoticeListResponse;
 import app.cheongdam.dto.NoticeMapResponse;
 import app.cheongdam.service.NoticeCalendarService;
 import app.cheongdam.service.NoticeDetailService;
+import app.cheongdam.exception.ApiException;
 import app.cheongdam.service.NoticeService;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +47,28 @@ public class NoticeController {
 				.header(HttpHeaders.CONTENT_DISPOSITION,
 						ContentDisposition.attachment().filename("cheongdam-" + no + ".ics").build().toString())
 				.body(ics);
+	}
+
+	/** 월간 일정(S-10). 목록과 같은 필터를 쓰고 status·sort는 무시한다. */
+	@GetMapping("/calendar")
+	NoticeCalendarResponse monthly(
+			@RequestParam(required = false) String month,
+			@RequestParam(required = false) String q,
+			@RequestParam(required = false) String region,
+			@RequestParam(required = false) String supply,
+			@RequestParam(name = "price_min", required = false) String priceMin,
+			@RequestParam(name = "price_max", required = false) String priceMax,
+			@RequestParam(required = false) String area,
+			@RequestParam(name = "notice_type", required = false) String noticeType,
+			@RequestParam(name = "house_kind", required = false) String houseKind) {
+		YearMonth ym;
+		try {
+			ym = YearMonth.parse(month == null ? "" : month);
+		} catch (DateTimeParseException e) {
+			throw ApiException.invalidParam("month", "month는 YYYY-MM 형식이어야 해요.");
+		}
+		return noticeService.calendar(ym, NoticeFilter.parse(q, null, region, supply, priceMin, priceMax, area,
+				noticeType, houseKind, null, null, null));
 	}
 
 	/** 목록과 같은 필터에 맞는 공고 전체의 좌표와 카드 정보. limit·offset은 쓰지 않는다. */

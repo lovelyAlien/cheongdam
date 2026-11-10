@@ -5,6 +5,9 @@ import app.cheongdam.domain.CrawlRun;
 import app.cheongdam.domain.Notice;
 import app.cheongdam.domain.NoticeUnit;
 import app.cheongdam.domain.SpecialSupply;
+import app.cheongdam.domain.NoticeSchedule;
+import app.cheongdam.dto.NoticeCalendarResponse;
+import app.cheongdam.dto.NoticeCalendarResponse.Event;
 import app.cheongdam.dto.NoticeFilter;
 import app.cheongdam.dto.NoticeListResponse;
 import app.cheongdam.dto.NoticeListResponse.Item;
@@ -15,6 +18,7 @@ import app.cheongdam.dto.NoticeMapResponse;
 import app.cheongdam.dto.NoticeMapResponse.Pin;
 import app.cheongdam.repository.CrawlRunRepository;
 import app.cheongdam.repository.NoticeRepository;
+import app.cheongdam.repository.NoticeScheduleRepository;
 import app.cheongdam.repository.NoticeSpecifications;
 import app.cheongdam.repository.NoticeUnitRepository;
 import app.cheongdam.util.District;
@@ -25,6 +29,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -50,13 +55,15 @@ public class NoticeService {
 	private final NoticeRepository noticeRepository;
 	private final NoticeUnitRepository unitRepository;
 	private final CrawlRunRepository crawlRunRepository;
+	private final NoticeScheduleRepository scheduleRepository;
 	private final Clock clock;
 
 	public NoticeService(NoticeRepository noticeRepository, NoticeUnitRepository unitRepository,
-			CrawlRunRepository crawlRunRepository, Clock clock) {
+			CrawlRunRepository crawlRunRepository, NoticeScheduleRepository scheduleRepository, Clock clock) {
 		this.noticeRepository = noticeRepository;
 		this.unitRepository = unitRepository;
 		this.crawlRunRepository = crawlRunRepository;
+		this.scheduleRepository = scheduleRepository;
 		this.clock = clock;
 	}
 
@@ -96,6 +103,33 @@ public class NoticeService {
 				located.stream().map(n -> new Pin(n.getHouseManageNo(), n.getLat(), n.getLng(), n.getGeoAccuracy())).toList(),
 				items(located, today, OffsetDateTime.now(clock)));
 	}
+
+	/** 월간 일정(S-10). 접수 상태는 달력이 기간을 정하므로 쓰지 않는다. */
+	public NoticeCalendarResponse calendar(YearMonth month, NoticeFilter f) {
+		LocalDate first = month.atDay(1);
+		LocalDate last = month.atEndOfMonth();
+		Map<String, String> names = noticeRepository
+				.findAll(NoticeSpecifications.matching(f, LocalDate.now(clock), Set.of("status"), false)).stream()
+				.collect(Collectors.toMap(Notice::getHouseManageNo, Notice::getName));
+		// shortcut: 필터에 맞는 공고 전체의 일정을 읽어 걸러 낸다. 공고가 수천 건을 넘으면 날짜 조건을 쿼리로 옮긴다
+		List<Event> events = scheduleRepository.findByIdHouseManageNoIn(names.keySet()).stream()
+				.filter(s -> s.getStartOn() != null || s.getEndOn() != null)
+				.map(s -> {
+					LocalDate start = s.getStartOn() != null ? s.getStartOn() : s.getEndOn();
+					LocalDate end = s.getEndOn() != null ? s.getEndOn() : s.getStartOn();
+					return new Event(s.getId().getHouseManageNo(), names.get(s.getId().getHouseManageNo()),
+							s.getStage(), s.getArea(), start, end);
+				})
+				.filter(e -> !e.startOn().isAfter(last) && !e.endOn().isBefore(first))
+				.sorted(Comparator.comparing(Event::startOn)
+						.thenComparingInt(e -> STAGE_ORDER.indexOf(e.stage()))
+						.thenComparing(Event::houseManageNo))
+				.toList();
+		return new NoticeCalendarResponse(month.toString(), events);
+	}
+
+	private static final List<String> STAGE_ORDER = List.of("special", "rank1", "rank2", "no_rank", "general",
+			"winner", "contract");
 
 	// ---- 건수 ----
 

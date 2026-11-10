@@ -215,3 +215,58 @@ button.evidence[aria-expanded='true'] { background: var(--accent); color: #fff; 
 }
 /* 공공 공고 칩 선택 시 주택형 단위 필터를 비활성처럼 보이게(D-30). 값은 유지하고 눌러서 바꿀 수도 있다 */
 .sheet-body section.off .chips, .sheet-body section.off .range { opacity: 0.45; }
+
+/* ---- 목록 카드 4줄 + 관심 ♡ (S-01, D-33) ---- */
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 8px; }
+.topbar h1 { padding: 0; }
+.card { position: relative; }
+.card .badges { padding-right: 36px; }
+.card-name { margin: 0; font-size: 17px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.fav-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); cursor: pointer; }
+.fav-btn[aria-pressed='true'] { color: var(--accent); }
+.fav-btn.icon { position: absolute; top: 6px; right: 6px; width: 40px; height: 40px; border: none; border-radius: 50%; background: none; }
+@media (pointer: coarse) { .fav-btn.icon { width: 44px; height: 44px; top: 4px; right: 4px; } }
+
+/* ---- 상세 하단 고정 바 · 평형 (S-03) ---- */
+.list-page.detail { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+.action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; gap: 8px; max-width: 640px; margin: 0 auto; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line); }
+.action-bar .btn { flex: 1 1 0; min-width: 0; padding: 10px 8px; font-size: 14px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.action-bar .btn.primary { flex-grow: 1.3; }
+.action-bar .fav-btn { flex: 0 0 auto; }
+.pyeong { margin-left: 4px; color: var(--accent); font-weight: 600; }
+.unit-facts { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; }
+.unit-facts div { display: flex; gap: 6px; }
+.unit-facts dt { color: var(--muted); }
+.unit-facts dd { margin: 0; }
+
+/* ---- 일정 캘린더 (S-10) ---- */
+.calendar-page .page-title { margin: 0; font-size: 18px; }
+.cal-controls { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0 12px; }
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.segmented button { padding: 8px 12px; border: none; background: none; color: var(--muted); font: inherit; font-size: 14px; }
+.segmented button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.cal, .cal-list { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.cal-list { margin-top: 12px; }
+.cal-list h2 { margin: 0 0 10px; font-size: 16px; }
+.cal-head { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; }
+.cal-head .btn { position: absolute; right: 28px; }
+.cal { position: relative; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.cal-dow { font-size: 12px; color: var(--muted); padding: 4px 0; }
+.cal-dow:first-child { color: var(--warn); }
+.cal-day { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 44px; padding: 6px 0 4px; border: 1px solid transparent; border-radius: 10px; background: none; color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
+.cal-day.today { border-color: var(--accent); }
+.cal-day.sel { background: var(--accent); color: #fff; }
+.cal-day .day-count { min-height: 14px; font-size: 11px; font-weight: 700; color: var(--accent); }
+.cal-day.sel .day-count { color: #fff; }
+.cal-list .rows { grid-template-columns: minmax(0, 1fr); }
+.cal-event { display: grid; gap: 4px; min-width: 0; }
+.cal-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.cal-stages { display: flex; flex-wrap: wrap; gap: 4px; }
+.badge.stage { background: var(--accent-soft); color: var(--accent); }
+@media (min-width: 960px) {
+  .list-page.calendar-page { max-width: 1040px; }
+  .cal-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .cal-list { margin-top: 0; position: sticky; top: 16px; }
+  .cal-day { min-height: 64px; }
+}
