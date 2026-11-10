@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # deploy.yml이 배포 전에 같은 검사를 돌린다.
+  workflow_call:
 
 # 같은 브랜치에서 새 커밋이 올라오면 이전 실행은 취소한다.
 concurrency:
