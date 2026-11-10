@@ -19,7 +19,7 @@
 - [x] A: 추출 검증과 품질 판단 (주 초 먼저. 일반 APT 공고 3~5건을 원문과 대조)
 - [x] A: 수집 배치(APT·무순위 공고, 주택형) + DB 저장 (`batch/`, PR #21. 로컬에서 2회 실행해 실제 공고 130건 적재와 재실행 시 중복 없음을 확인)
 - [x] B: Spring Boot·React 골격 (Docker Compose 포함)
-- [ ] B: NCP VM 배포
+- [x] B: NCP VM 배포
 - [x] B: API 명세 (목록·상세·구독, [API.md](spec/API.md))
 - [x] B: 목록 화면(S-01), 필터 시작(S-02)
 - [x] 함께: DB 스키마 확정 (`V1__init.sql`, D-24)
