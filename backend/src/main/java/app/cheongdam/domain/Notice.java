@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,7 +32,13 @@ public class Notice {
 
 	private String name;
 
+	/** 표시용. 여러 시도에 걸친 공고는 '전국' 또는 'A 외 N' */
 	private String region;
+
+	/** 공고가 걸친 시도 전부(지역 필터용). 배치가 늘 채운다. 테스트 데이터는 null일 수 있다 */
+	@JdbcTypeCode(SqlTypes.ARRAY)
+	@Column(columnDefinition = "text[]")
+	private List<String> regions;
 
 	private String regionCode;
 

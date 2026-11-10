@@ -74,6 +74,13 @@ def region(row: dict) -> str:
     return REGIONS[name]
 
 
+def display_region(regions: list[str]) -> str:
+    """목록·메일에 보일 지역. 시도 16곳(전남광주 통합 뒤 전부)이면 전국, 여러 곳이면 'A 외 N'."""
+    if len(regions) == 1:
+        return regions[0]
+    return "전국" if len(regions) >= 16 else f"{regions[0]} 외 {len(regions) - 1}"
+
+
 def house_manage_no(raw: dict) -> str:
     return f"{PREFIX[raw['kind']]}{raw['rows'][0]['pblancId']}"
 
@@ -82,13 +89,15 @@ def notice_row(raw: dict) -> dict:
     rows, first = raw["rows"], raw["rows"][0]
     starts = [d for d in (_date(r["beginDe"]) for r in rows) if d]
     ends = [d for d in (_date(r["endDe"]) for r in rows) if d]
+    regions = list(dict.fromkeys(region(r) for r in rows))  # LH 전세임대 같은 전국 공고는 시도마다 행이 온다
     counts = [c for c in (_int(r.get("sumSuplyCo")) for r in rows) if c is not None]
     return {
         "house_manage_no": house_manage_no(raw),
         "notice_type": "public_sale" if raw["kind"] == "sale" else "public_rent",
         "source_api": f"myhome_{raw['kind']}",
         "name": first["pblancNm"],
-        "region": region(first),
+        "region": display_region(regions),
+        "regions": regions,
         "region_code": None,
         "address": first.get("fullAdres") or None,
         "house_kind": None,  # 청약 분양의 민영/국민 구분은 공공 공고에 쓰지 않는다

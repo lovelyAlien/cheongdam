@@ -16,7 +16,7 @@ KST = ZoneInfo("Asia/Seoul")
 log = logging.getLogger("collect")
 
 _NOTICE_COLS = [
-    "notice_type", "source_api", "name", "region", "region_code", "address", "house_kind", "developer",
+    "notice_type", "source_api", "name", "region", "regions", "region_code", "address", "house_kind", "developer",
     "announced_on", "rcept_start", "rcept_end", "winner_on", "contract_start", "contract_end", "move_in_ym",
     "total_households", "notice_url", "homepage_url", "phone", "is_regulated", "supply_kind", "before_notice_no",
 ]
