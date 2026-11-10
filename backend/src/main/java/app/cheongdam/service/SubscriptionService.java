@@ -7,7 +7,7 @@ import app.cheongdam.dto.AlertDtos.ManageResponse;
 import app.cheongdam.dto.AlertDtos.ManagedSubscription;
 import app.cheongdam.dto.SubscriptionConditions;
 import app.cheongdam.exception.ApiException;
-import app.cheongdam.mail.AlertMailer;
+import app.cheongdam.mail.AlertMailEvents;
 import app.cheongdam.repository.NoticeRepository;
 import app.cheongdam.repository.NoticeSpecifications;
 import app.cheongdam.repository.SubscriptionRepository;
@@ -22,12 +22,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
-/** 알림 구독(S-08). 로그인이 없어 메일 속 토큰이 곧 권한이다(API.md 5장, D-27). */
+/**
+ * 알림 구독(S-08). 로그인이 없어 메일 속 토큰이 곧 권한이다(API.md 5장, D-27).
+ * 메일은 직접 보내지 않고 이벤트로 넘겨 커밋된 뒤에 나가게 한다. 발송이 실패해도 해지가 되돌아가지 않아야 하기 때문이다(ALERT_DELIVERY 4장).
+ */
 @Service
 @Transactional
 public class SubscriptionService {
@@ -40,17 +44,17 @@ public class SubscriptionService {
 
 	private final SubscriptionRepository repository;
 	private final NoticeRepository noticeRepository;
-	private final AlertMailer mailer;
+	private final ApplicationEventPublisher events;
 	private final RateLimiter limiter;
 	private final JdbcClient jdbc;
 	private final JsonMapper json;
 	private final Clock clock;
 
 	public SubscriptionService(SubscriptionRepository repository, NoticeRepository noticeRepository,
-			AlertMailer mailer, RateLimiter limiter, JdbcClient jdbc, JsonMapper json, Clock clock) {
+			ApplicationEventPublisher events, RateLimiter limiter, JdbcClient jdbc, JsonMapper json, Clock clock) {
 		this.repository = repository;
 		this.noticeRepository = noticeRepository;
-		this.mailer = mailer;
+		this.events = events;
 		this.limiter = limiter;
 		this.jdbc = jdbc;
 		this.json = json;
@@ -81,7 +85,7 @@ public class SubscriptionService {
 				throw ApiException.conflict("already_subscribed", "이미 이 조건으로 알림을 받고 있어요.");
 			}
 			s.renew(now); // E-17: 확인 대기면 같은 토큰으로 다시 보내고 7일을 다시 센다
-			mailer.confirmation(email, s.getConfirmToken(), conditions);
+			events.publishEvent(new AlertMailEvents.Confirmation(email, s.getConfirmToken(), conditions));
 			return;
 		}
 		if (repository.findByEmailAndStatusInOrderById(email, LIVE).size() >= MAX_PER_EMAIL) {
@@ -89,7 +93,7 @@ public class SubscriptionService {
 		}
 		Subscription s = repository.save(
 				Subscription.pending(email, conditionsJson, hash, token(), token(), now));
-		mailer.confirmation(email, s.getConfirmToken(), conditions);
+		events.publishEvent(new AlertMailEvents.Confirmation(email, s.getConfirmToken(), conditions));
 	}
 
 	/** 확인 링크. 이미 확인한 토큰도 같은 응답을 준다. */
@@ -164,7 +168,7 @@ public class SubscriptionService {
 		limiter.check("manage-link:email:" + email, 1);
 		List<Subscription> live = repository.findByEmailAndStatusInOrderById(email, LIVE);
 		live.stream().filter(s -> s.getStatus().equals("active")).findFirst().or(() -> live.stream().findFirst())
-				.ifPresent(s -> mailer.manageLink(email, s.getManageToken()));
+				.ifPresent(s -> events.publishEvent(new AlertMailEvents.ManageLink(email, s.getManageToken())));
 	}
 
 	// ---- 내부 ----
@@ -175,7 +179,7 @@ public class SubscriptionService {
 		List<Map<String, Object>> conditions = targets.stream().map(this::conditions).toList();
 		targets.forEach(t -> t.unsubscribe(now));
 		boolean last = repository.findByEmailAndStatusInOrderById(email, LIVE).isEmpty();
-		mailer.unsubscribed(email, conditions, last);
+		events.publishEvent(new AlertMailEvents.Unsubscribed(email, conditions, last));
 		if (last) {
 			// 발송 중지(suspended)의 이메일은 차단용으로 남긴다
 			repository.findByEmailAndStatusInOrderById(email, List.of("unsubscribed")).forEach(Subscription::clearEmail);

@@ -10,6 +10,11 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       # DEV 샘플 공고는 기본으로 넣지 않는다. 필요하면 APP_DEV_SEED=true ./dev.sh up (시작할 때마다 DEV 샘플을 지우고 다시 넣는다). 운영 DB에서는 절대 켜지 않는다.
       APP_DEV_SEED: ${APP_DEV_SEED:-false}
+      # 메일 발송기. 기본은 로그만 찍는다. 실제 Gmail 발송은 .env.mail에 넣는다(README "알림 메일을 실제로 받아 보기")
+      # 빈 값을 넘기면 application.properties의 기본값이 먹지 않고 provider=""가 되어 발송기 빈이 하나도 안 뜬다. 기본값을 반드시 둔다
+      APP_MAIL_PROVIDER: ${APP_MAIL_PROVIDER:-log}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
     ports:
       - "127.0.0.1:8080:8080"    # API를 curl로 바로 확인
 

@@ -8,6 +8,7 @@ import app.cheongdam.domain.Subscription;
 import app.cheongdam.dto.NoticeFilter;
 import app.cheongdam.dto.SubscriptionConditions;
 import app.cheongdam.mail.AlertMailer;
+import app.cheongdam.mail.MailProviderException;
 import app.cheongdam.mail.DigestMail;
 import app.cheongdam.mail.DigestMail.Change;
 import app.cheongdam.mail.DigestMail.CorrectionEntry;
@@ -110,6 +111,10 @@ public class AlertDispatchService {
 		if (!s.getStatus().equals("active") || s.getEmail() == null) {
 			return false;
 		}
+		// 설정 오류로 못 보낸 지난 날짜의 대기 행을 접는다. 기준 시각이 안 움직였으므로 오늘 행이 그 공고를 다시 담는다(P-19)
+		jdbc.sql("UPDATE alert_outbox SET status = 'failed', error = 'superseded' "
+				+ "WHERE subscription_id = :s AND status = 'pending' AND send_date < :d")
+				.param("s", subscriptionId).param("d", today).update();
 		boolean already = jdbc.sql("SELECT count(*) FROM alert_outbox WHERE subscription_id = :s AND send_date = :d")
 				.param("s", subscriptionId).param("d", today).query(Integer.class).single() > 0;
 		if (already) {
@@ -180,7 +185,7 @@ public class AlertDispatchService {
 
 	/** 보낼 때가 된 대기 메일을 보낸다. 일시 실패는 1시간 뒤 한 번 더 시도한다(P-20). @return 보낸 메일 수 */
 	public int sendDue(OffsetDateTime now) {
-		List<Long> ids = jdbc.sql("SELECT id FROM alert_outbox WHERE status = 'pending' AND send_date <= :d "
+		List<Long> ids = jdbc.sql("SELECT id FROM alert_outbox WHERE status = 'pending' AND send_date = :d "
 				+ "AND (next_attempt_at IS NULL OR next_attempt_at <= :now) ORDER BY id")
 				.param("d", LocalDate.now(clock)).param("now", now).query(Long.class).list();
 		int sent = 0;
@@ -236,13 +241,21 @@ public class AlertDispatchService {
 	}
 
 	private void recordFailure(Outbox ob, OffsetDateTime now, RuntimeException e) {
+		String message = String.valueOf(e.getMessage());
+		String reason = message.substring(0, Math.min(message.length(), 500));
+		if (e instanceof MailProviderException) {
+			// 발송기 설정·한도 문제. 고치면 그날 메일이 그대로 나가야 하므로 시도 횟수를 쓰지 않는다(ALERT_DELIVERY 3.3)
+			jdbc.sql("UPDATE alert_outbox SET next_attempt_at = :next, error = :err WHERE id = :id")
+					.param("next", now.plus(RETRY_AFTER)).param("err", reason).param("id", ob.id()).update();
+			log.error("발송기 설정이나 한도 문제로 알림을 보내지 못했어요. outbox={}", ob.id(), e);
+			return;
+		}
 		int attempts = ob.attempts() + 1;
 		boolean giveUp = attempts >= MAX_ATTEMPTS;
-		String error = String.valueOf(e.getMessage());
 		jdbc.sql("UPDATE alert_outbox SET attempts = :a, status = :st, next_attempt_at = :next, error = :err "
 				+ "WHERE id = :id").param("a", attempts).param("st", giveUp ? "failed" : "pending")
 				.param("next", giveUp ? null : now.plus(RETRY_AFTER))
-				.param("err", error.substring(0, Math.min(error.length(), 500))).param("id", ob.id()).update();
+				.param("err", reason).param("id", ob.id()).update();
 		log.warn("알림 메일을 보내지 못했어요. outbox={} attempts={} 포기={}", ob.id(), attempts, giveUp, e);
 	}
 

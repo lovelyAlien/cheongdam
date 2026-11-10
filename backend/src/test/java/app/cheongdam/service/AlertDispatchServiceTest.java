@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.cheongdam.mail.AlertMailer;
 import app.cheongdam.mail.DigestMail;
+import app.cheongdam.mail.MailProviderException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -38,6 +40,8 @@ class AlertDispatchServiceTest {
 	static class RecordingMailer implements AlertMailer {
 		final List<DigestMail> digests = new ArrayList<>();
 		int failures;
+		/** 발송기 설정·한도 문제. 시도 횟수를 쓰지 않아야 한다(ALERT_DELIVERY 3.3) */
+		int providerFailures;
 
 		@Override
 		public void confirmation(String email, String confirmToken, Map<String, Object> conditions) {
@@ -49,6 +53,10 @@ class AlertDispatchServiceTest {
 
 		@Override
 		public void digest(String email, DigestMail mail) {
+			if (providerFailures > 0) {
+				providerFailures--;
+				throw new MailProviderException("발송 한도를 넘었어요");
+			}
 			if (failures > 0) {
 				failures--;
 				throw new IllegalStateException("발송기 오류");
@@ -95,6 +103,7 @@ class AlertDispatchServiceTest {
 	void clean() {
 		mailer.digests.clear();
 		mailer.failures = 0;
+		mailer.providerFailures = 0;
 		jdbc.sql("DELETE FROM alert_log").update();
 		jdbc.sql("DELETE FROM subscription").update(); // outbox는 함께 지워진다
 		jdbc.sql("DELETE FROM notice_change").update();
@@ -211,6 +220,31 @@ class AlertDispatchServiceTest {
 		assertEquals(0, service.sendDue(NOW));
 		assertTrue(mailer.digests.isEmpty());
 		assertEquals("failed", jdbc.sql("SELECT status FROM alert_outbox").query(String.class).single());
+	}
+
+	@Test
+	void 발송기_설정_오류는_시도_횟수를_쓰지_않고_지난_날짜_대기는_접혀_한_통만_나간다() {
+		subscription("h@example.com", "{\"v\":1}", "active", "2026-10-20T00:00:00+09:00");
+		notice("N1", "경기", "2026-10-21T12:00:00+09:00", null, 1, null);
+		service.enqueue(CUTOFF);
+
+		mailer.providerFailures = 1;
+		assertEquals(0, service.sendDue(NOW));
+		assertEquals(0, jdbc.sql("SELECT attempts FROM alert_outbox").query(Integer.class).single());
+		assertEquals("pending", jdbc.sql("SELECT status FROM alert_outbox").query(String.class).single());
+
+		// 설정을 못 고친 채 날이 바뀐 상황. 지난 날짜 대기는 보내지 않는다
+		jdbc.sql("UPDATE alert_outbox SET send_date = :d, next_attempt_at = NULL")
+				.param("d", LocalDate.parse("2026-10-21")).update();
+		assertEquals(0, service.sendDue(NOW));
+
+		// 다음 날 매칭이 어제 행을 접고 같은 공고를 오늘 행에 다시 담는다
+		assertEquals(1, service.enqueue(CUTOFF));
+		assertEquals("superseded", jdbc.sql("SELECT error FROM alert_outbox WHERE send_date = :d")
+				.param("d", LocalDate.parse("2026-10-21")).query(String.class).single());
+		assertEquals(1, service.sendDue(NOW));
+		assertEquals(1, mailer.digests.size()); // 쌓였다가 한꺼번에 나가지 않는다
+		assertEquals("N1", mailer.digests.get(0).newNotices().get(0).houseManageNo());
 	}
 
 	// ---- 도우미 ----

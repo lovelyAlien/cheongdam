@@ -4,12 +4,12 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** 개발 중에는 메일 대신 링크를 로그로 찍어 구독 흐름을 직접 따라가 볼 수 있게 한다. */
+/** 메일 대신 링크를 로그로 찍어 구독 흐름을 직접 따라가 볼 수 있게 한다. {@code app.mail.provider=log}일 때 쓴다. */
 @Component
-@Profile("dev")
+@ConditionalOnProperty(name = "app.mail.provider", havingValue = "log")
 class DevLogAlertMailer implements AlertMailer {
 
 	private static final Logger log = LoggerFactory.getLogger(DevLogAlertMailer.class);
