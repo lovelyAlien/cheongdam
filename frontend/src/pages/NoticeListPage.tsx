@@ -296,6 +296,12 @@ export function NoticeListPage() {
           aria-label="단지명 검색"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
+          onKeyDown={(e) => {
+            // 엔터는 디바운스를 기다리지 않고 바로 검색(F3-8)
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing && searchText.trim() !== filters.q) {
+              update({ ...filters, q: searchText.trim() })
+            }
+          }}
         />
       </div>
 
