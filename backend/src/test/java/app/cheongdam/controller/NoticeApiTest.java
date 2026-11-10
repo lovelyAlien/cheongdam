@@ -142,6 +142,18 @@ class NoticeApiTest {
 	}
 
 	@Test
+	void 여러_시도에_걸친_공고는_걸친_시도_어느_것으로_걸러도_나온다() throws Exception {
+		publicNotice("MHR9", "public_rent", "전세임대", null, "{}");
+		jdbc.sql("UPDATE notice SET region = '전국', regions = '{경북,서울,부산}' WHERE house_manage_no = 'MHR9'").update();
+
+		mvc.perform(get("/api/notices").param("region", "서울").param("notice_type", "public_rent"))
+				.andExpect(jsonPath("$.items[*].house_manage_no").value(org.hamcrest.Matchers.contains("MHR9")))
+				.andExpect(jsonPath("$.items[0].region").value("전국"));
+		mvc.perform(get("/api/notices").param("region", "대구").param("notice_type", "public_rent"))
+				.andExpect(jsonPath("$.total").value(0));
+	}
+
+	@Test
 	void 전용면적_구간_경계는_60과_85를_아래_구간에_넣는다() throws Exception {
 		// 이름 검색(경계)으로 위 픽스처와 분리한다. 구간: le60 = ≤60, 60to85 = (60, 85], gt85 = >85
 		notice("B1", "general", "private", "경기", "경계 60.00", 0, 1);

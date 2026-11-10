@@ -26,13 +26,22 @@ def test_region_names_match_filter_regions():
         myhome.region(row(brtcNm="없는도"))
 
 
+def test_nationwide_notice_keeps_every_region():
+    seoul = dict(brtcNm="서울특별시", signguNm="")
+    rows = [row(sn="1", brtcNm="경상북도"), row(sn="2", **seoul), row(sn="3", brtcNm="경상북도")]
+    r = myhome.notice_row(myhome.group("rent", rows)[0])
+    assert (r["region"], r["regions"]) == ("경북 외 1", ["경북", "서울"])
+    assert myhome.display_region(["서울"]) == "서울"
+    assert myhome.display_region([f"r{i}" for i in range(16)]) == "전국"
+
+
 def test_group_by_notice_and_notice_row():
     rows = [row(sn="2", hsmpNm="A-2", beginDe="20261113", endDe="20261114", sumSuplyCo="50"), row(sn="1")]
     [n] = myhome.group("sale", rows)
     assert [r["houseSn"] for r in n["rows"]] == ["1", "2"]
     r = myhome.notice_row(n)
     assert (r["house_manage_no"], r["notice_type"], r["source_api"], r["house_kind"]) == ("MHS1496", "public_sale", "myhome_sale", None)
-    assert (r["region"], r["developer"], r["total_households"]) == ("경기", "LH", 150)
+    assert (r["region"], r["regions"], r["developer"], r["total_households"]) == ("경기", ["경기"], "LH", 150)
     assert (r["rcept_start"], r["rcept_end"], r["winner_on"]) == (date(2026, 11, 11), date(2026, 11, 14), date(2026, 11, 19))
     assert [s["stage"] for s in myhome.schedule_rows(r)] == ["general", "winner"]
     rent = myhome.notice_row(myhome.group("rent", [row(pid="21479")])[0])

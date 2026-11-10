@@ -54,7 +54,14 @@ public final class NoticeSpecifications {
 				ps.add(nameContains(f.q(), root, cb));
 			}
 			if (!f.region().isEmpty() && !drop.contains("region")) {
-				ps.add(root.get("region").in(f.region()));
+				// 전국 공고는 region이 '전국'이라 regions(걸친 시도 전부)로도 맞춘다
+				List<Predicate> any = new ArrayList<>();
+				any.add(root.get("region").in(f.region()));
+				for (String r : f.region()) {
+					// Hibernate의 array_position은 없으면 0을 돌려준다(NULL 아님)
+					any.add(cb.greaterThan(cb.function("array_position", Integer.class, root.get("regions"), cb.literal(r)), 0));
+				}
+				ps.add(cb.or(any.toArray(Predicate[]::new)));
 			}
 			if (onlyNoInfo) {
 				ps.add(root.get("noticeType").in("no_rank", "resupply", "public_sale", "public_rent"));

@@ -98,6 +98,7 @@ def notice_row(source_api: str, raw: dict) -> dict:
         "source_api": source_api,
         "name": raw["HOUSE_NM"],
         "region": raw["SUBSCRPT_AREA_CODE_NM"],
+        "regions": [raw["SUBSCRPT_AREA_CODE_NM"]],
         "region_code": raw.get("SUBSCRPT_AREA_CODE"),
         "address": raw.get("HSSPLY_ADRES"),
         "house_kind": {"민영": "private", "국민": "public"}.get(raw.get("HOUSE_DTL_SECD_NM")),
