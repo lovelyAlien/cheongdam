@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import { AlertConfirmPage } from './pages/AlertConfirmPage'
 import { AlertManagePage } from './pages/AlertManagePage'
 import { AlertUnsubscribePage } from './pages/AlertUnsubscribePage'
+import { CalendarPage } from './pages/CalendarPage'
 import { NoticeDetailPage } from './pages/NoticeDetailPage'
 import { NoticeListPage } from './pages/NoticeListPage'
 
@@ -11,6 +12,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<NoticeListPage />} />
         <Route path="/notices/:no" element={<NoticeDetailPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/alerts/confirm" element={<AlertConfirmPage />} />
         <Route path="/alerts/manage" element={<AlertManagePage />} />
         <Route path="/alerts/unsubscribe" element={<AlertUnsubscribePage />} />

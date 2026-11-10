@@ -106,6 +106,33 @@ class NoticeApiTest {
 	}
 
 	@Test
+	void 월간_일정은_그_달과_겹치는_단계만_필터에_맞게_내리고_접수_상태는_무시한다() throws Exception {
+		jdbc.sql("DELETE FROM notice_schedule").update();
+		String sql = "INSERT INTO notice_schedule VALUES (:no, :stage, :area, :s, :e)";
+		jdbc.sql(sql).param("no", "N1").param("stage", "rank1").param("area", "local")
+				.param("s", TODAY).param("e", TODAY).update();
+		jdbc.sql(sql).param("no", "N1").param("stage", "contract").param("area", "all")
+				.param("s", LocalDate.of(2026, 10, 30)).param("e", LocalDate.of(2026, 11, 2)).update(); // 달을 걸친다
+		jdbc.sql(sql).param("no", "N3").param("stage", "winner").param("area", "all")
+				.param("s", LocalDate.of(2026, 10, 5)).param("e", LocalDate.of(2026, 10, 5)).update(); // 마감 공고
+		jdbc.sql(sql).param("no", "N2").param("stage", "special").param("area", "all")
+				.param("s", LocalDate.of(2026, 12, 1)).param("e", LocalDate.of(2026, 12, 1)).update(); // 다른 달
+		mvc.perform(get("/api/notices/calendar").param("month", "2026-10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.month").value("2026-10"))
+				.andExpect(jsonPath("$.events.length()").value(3))
+				.andExpect(jsonPath("$.events[0].house_manage_no").value("N3"))
+				.andExpect(jsonPath("$.events[1].stage").value("rank1"))
+				.andExpect(jsonPath("$.events[1].name").value("자이 센트럴"))
+				.andExpect(jsonPath("$.events[2].end_on").value("2026-11-02"));
+		mvc.perform(get("/api/notices/calendar").param("month", "2026-11").param("region", "경기"))
+				.andExpect(jsonPath("$.events[*].stage").value(org.hamcrest.Matchers.contains("contract")));
+		mvc.perform(get("/api/notices/calendar").param("month", "2026-13"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error.code").value("invalid_param"));
+	}
+
+	@Test
 	void 마감_공고는_closed를_고를_때만_나오고_맨_뒤다() throws Exception {
 		mvc.perform(get("/api/notices").param("status", "open,upcoming,closed"))
 				.andExpect(jsonPath("$.total").value(5))

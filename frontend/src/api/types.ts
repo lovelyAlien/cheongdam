@@ -161,3 +161,17 @@ export interface Change {
   detected_at: string
   items: { field: string; before: string | null; after: string | null }[]
 }
+
+export interface CalendarEvent {
+  house_manage_no: string
+  name: string
+  stage: string
+  area: string
+  start_on: string
+  end_on: string
+}
+
+export interface NoticeCalendarData {
+  month: string
+  events: CalendarEvent[]
+}

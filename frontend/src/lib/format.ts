@@ -66,11 +66,16 @@ export function formatMoveIn(ym: string | null): string | null {
 }
 
 /** 전용면적 84.886 + 084.8860A → 84.89㎡ A */
-export function formatUnit(exclusive: number, houseTy: string): string {
-  const suffix = houseTy.match(/[A-Za-z가-힣]+$/)?.[0] ?? ''
-  const area = (Math.round(exclusive * 100) / 100).toString()
-  return suffix ? `${area}㎡ ${suffix}` : `${area}㎡`
+/** 주택형 이름: 084.8860A → 84A (전용면적 정수부 + 타입 글자) */
+export function formatUnitName(exclusive: number, houseTy: string): string {
+  return `${Math.floor(exclusive)}${houseTy.match(/[A-Za-z가-힣]+$/)?.[0] ?? ''}`
 }
+
+/** 면적 표기: 84.886 → 84.89㎡ */
+export const formatArea = (m2: number) => `${Math.round(m2 * 100) / 100}㎡`
+
+/** 공급면적 → 평형(반올림). 110.2㎡ → 33평 */
+export const toPyeong = (supplyM2: number) => Math.round(supplyM2 / 3.3058)
 
 export function formatDateTime(iso: string): string {
   return `${formatDate(iso.slice(0, 10))} ${iso.slice(11, 16)}`

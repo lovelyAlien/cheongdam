@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import { ApiError, changeConditions } from '../api/alerts'
 import { fetchNoticeMap, fetchNotices } from '../api/notices'
 import type { NoticeItem, NoticeList, NoticeMapData } from '../api/types'
@@ -267,6 +267,7 @@ export function NoticeListPage() {
     <main className={desktop ? (split ? 'list-page desktop map-view-on' : 'list-page desktop') : 'list-page'}>
       <header className="topbar">
         <h1>청담</h1>
+        <Link className="btn small-btn plain" to={`/calendar?${toParams(filters)}`}>캘린더</Link>
       </header>
 
       {edit && (
