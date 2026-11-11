@@ -56,3 +56,41 @@ cd frontend && npm run lint && npm run build
 cp .env.example .env        # DB_PASSWORD를 바꾼다
 docker compose up -d --build
 ```
+
+운영 서버는 메모리·디스크가 작아 서버에서 빌드하지 않는다. 아래 태그 배포를 쓴다.
+
+### 태그 배포 (GitHub Actions)
+
+`v`로 시작하는 태그를 push하면 [`deploy.yml`](.github/workflows/deploy.yml)이 운영 서버에 배포한다.
+
+```bash
+git checkout main && git pull
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+1. CI(백엔드 빌드·테스트, 프론트 린트·빌드)를 돌리고, 실패하면 배포하지 않는다.
+2. 러너에서 `cheongdam-{backend,batch,web}:prod` 이미지를 빌드한다.
+3. `docker save | gzip | ssh … docker load`로 서버에 올린다.
+4. 서버의 `/root/cheongdam-prod`에서 `docker compose -p cheongdam up -d` 후 안 쓰는 이미지를 지운다.
+5. `/api/notices`가 2분 반 안에 응답하지 않으면 실패로 끝내고 백엔드 로그를 남긴다.
+
+진행 상황은 GitHub의 Actions 탭 → Deploy에서 본다. 배포는 한 번에 하나만 돌고, 진행 중인 배포는 취소되지 않는다.
+
+**처음 한 번 설정**: 저장소 Settings → Environments에 `production`을 만들고 아래 시크릿을 넣는다. 승인자(Required reviewers)를 지정하면 승인 뒤에 배포가 시작된다.
+
+| 시크릿 | 값 |
+|---|---|
+| `SSH_HOST` | 운영 서버 공인 IP |
+| `SSH_PRIVATE_KEY` | 서버 접속용 개인 키(`.pem`) 내용 |
+| `SSH_KNOWN_HOSTS` | `grep '^<서버 IP> ' ~/.ssh/known_hosts` 출력 |
+| `VITE_KAKAO_JS_KEY` | 카카오 JavaScript 키(웹 번들에 들어간다) |
+
+서버에는 `/root/cheongdam-prod`에 `cheongdam-*:prod` 이미지를 쓰는 compose 파일과 `.env`가 미리 있어야 한다.
+
+**되돌리기**: 자동 롤백은 없다. 같은 `:prod` 태그를 덮어쓰므로, 되돌릴 커밋에 새 태그를 붙여 다시 배포한다.
+
+```bash
+git tag v1.2.1 <되돌릴 커밋>
+git push origin v1.2.1
+```
