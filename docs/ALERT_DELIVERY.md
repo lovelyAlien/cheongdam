@@ -37,7 +37,7 @@
 | **SMTP 발송기** | **됨** | `SmtpAlertMailer`, `MailConfig` ([3장](#3-메일-발송-어댑터-smtp)) |
 | **커밋 후 발송** | **됨** | `AlertMailEvents`, `AlertMailDispatcher` ([4장](#4-메일을-트랜잭션-밖에서-보낸다)) |
 | **실패 3분류·묵은 대기 행 처리** | **됨** | `TransientMailException`, `MailProviderException` ([3.3](#33-실패를-세-가지로-나눈다)) |
-| **로컬에서 Gmail로 보내 보기** | **됨** | `.env.mail`, `DevAlertDispatchController`, `./dev.sh alert` ([8.3](#83-로컬에서-gmail로-보내-본다)) |
+| **로컬에서 Gmail로 보내 보기** | **됨** | `.env`의 메일 설정, `DevAlertDispatchController`, `./dev.sh alert` ([8.3](#83-로컬에서-gmail로-보내-본다)) |
 | 반송·스팸 반영 (E-15) | 수동 운영 | [5장](#5-반송수신-거부-e-15) |
 | 개인정보 파기 배치 (P-09, E-14) | **남음** | [6장](#6-개인정보-파기-배치-p-09-e-14) |
 | **수집 지연 대비 (P-17)** | **됨** | `AlertDispatchJob` ([7장](#7-발송-시각-보강-p-17)) |
@@ -221,7 +221,7 @@ SCHEMA 6장이 "이 파기 배치는 B가 하루 한 번 돌린다"고 적었으
 
 `application-dev.properties`는 `app.mail.provider=${APP_MAIL_PROVIDER:log}`라 로컬에서는 기본이 로그다.
 
-**비밀은 커밋하지 않는다.** `.env.dev`는 git에 올라가 있고 "비밀 아님"이라고 적혀 있으므로 여기에 넣지 않는다. `.env.mail`에 두면 `dev.sh`가 읽는다([8.3](#83-로컬에서-gmail로-보내-본다)). 컨테이너 없이 직접 띄울 때는 셸에서 넘긴다.
+**비밀은 커밋하지 않는다.** `.env.dev`는 git에 올라가 있고 "비밀 아님"이라고 적혀 있으므로 여기에 넣지 않는다. `.gitignore`가 무시하는 루트 `.env`에 두면 `dev.sh`가 읽는다([8.3](#83-로컬에서-gmail로-보내-본다)). 컨테이너 없이 직접 띄울 때는 셸에서 넘긴다.
 
 ```bash
 APP_MAIL_PROVIDER=smtp SPRING_MAIL_USERNAME=... SPRING_MAIL_PASSWORD=... ./gradlew bootRun
@@ -237,10 +237,10 @@ APP_MAIL_PROVIDER=smtp SPRING_MAIL_USERNAME=... SPRING_MAIL_PASSWORD=... ./gradl
 
 ### 8.3 로컬에서 Gmail로 보내 본다
 
-`./dev.sh up`이 읽는 `.env`와 `.env.dev`는 git에 올라가 있어 비밀을 넣을 수 없다. **`.env.mail`을 따로 두고 `dev.sh`가 있을 때만 마지막에 덧씌운다**(`.env` → `.env.dev` → `.env.mail` 순으로 셸 환경변수에 올린다. compose 2.2.x가 `--env-file`을 두 번 못 받기 때문이다). `.gitignore`의 `.env.*`가 이 파일을 무시한다(템플릿 `.env.mail.example`만 예외로 추적한다).
+메일 계정과 앱 비밀번호는 다른 키와 함께 **루트 `.env`**에 둔다. `.gitignore`가 `.env`를 무시하고, git에 올라가는 `.env.dev`에는 비밀을 넣지 않는다. `dev.sh`가 `.env` → `.env.dev` 순으로 셸 환경변수에 올린다(compose 2.2.x가 `--env-file`을 두 번 못 받기 때문이다). 예전의 별도 파일 `.env.mail`은 `.env`로 합쳤다.
 
 ```bash
-cp .env.mail.example .env.mail     # APP_MAIL_PROVIDER=smtp, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD
+# .env에 APP_MAIL_PROVIDER=smtp, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD를 채운다(.env.example의 주석 참고)
 APP_DEV_SEED=true ./dev.sh up
 ```
 
@@ -329,7 +329,7 @@ M-01 확인 메일의 링크는 `app.base-url`인 `http://localhost:8000`을 가
 |---|---|---|
 | 1 | 커밋 후 발송(4장) + 실패 분류(3.3) + `app.mail.provider` 빈 선택(3.4) | **완료** |
 | 2 | SMTP 어댑터(3.2) + 설정 + 시작 시 검증 + 테스트(9장) | **완료** |
-| 2-1 | 로컬에서 Gmail로 보내 보는 길(8.3): `.env.mail`, compose 전달, 즉시 발송 트리거 | **완료** |
+| 2-1 | 로컬에서 Gmail로 보내 보는 길(8.3): `.env`의 메일 설정, compose 전달, 즉시 발송 트리거 | **완료** |
 | 3 | 파기 배치(6장) + 수집 지연 한계(7장) | 남음 |
 | — | 도메인 등록, 런칭 발송기 결정(D-31), 발신 도메인 인증(8.2) | 남음 |
 

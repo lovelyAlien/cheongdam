@@ -37,7 +37,7 @@ Docker만 있으면 된다.
 기본값은 **메일을 보내지 않고 로그만 찍는다**(`./dev.sh logs backend`에 확인 링크가 나온다). 조건에 맞는 공고를 Gmail로 실제로 받아 보려면:
 
 ```bash
-cp .env.mail.example .env.mail     # Gmail 계정과 앱 비밀번호를 채운다 (.gitignore가 무시한다)
+# .env의 메일 세 줄(APP_MAIL_PROVIDER, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD) 주석을 풀고 채운다
 APP_DEV_SEED=true ./dev.sh up      # 샘플 공고 8건을 넣고 SMTP 발송기로 뜬다
 ```
 
