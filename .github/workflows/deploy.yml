@@ -44,6 +44,36 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           printf 'Host prod\n  HostName %s\n  User root\n  IdentityFile ~/.ssh/id_deploy\n  ServerAliveInterval 30\n' "$SSH_HOST" > ~/.ssh/config
 
+      # 서버 디스크가 작다. 이미지를 받기 전에 안 쓰는 이미지·빌드 캐시·오래된 로그를 지운다.
+      # 컨테이너(실행 중이든 멈춰 있든)가 쓰는 이미지는 prune 대상이 아니다.
+      - name: 서버 정리
+        run: ssh prod 'docker image prune -af; docker builder prune -af; journalctl --vacuum-size=200M; df -h /'
+
+      # 새 이미지는 바뀐 층만 늘어나지만, 받다가 공간이 모자라면 서버가 어중간해지니 미리 멈춘다.
+      - name: 디스크 여유 확인
+        run: |
+          avail=$(ssh prod "df --output=avail -m / | tail -1")
+          echo "남은 공간: ${avail}MB"
+          [ "$avail" -ge 500 ] || { echo "::error::디스크 여유가 500MB 미만이라 배포를 멈춘다"; exit 1; }
+
+      # 운영 .env는 PROD_ENV 시크릿이 원본이다. 필수 키가 빠졌거나 DB_PASSWORD가 바뀌면
+      # (DB는 처음 비밀번호를 계속 쓴다) 서버를 건드리기 전에 멈춘다. 기존 파일은 .env.bak으로 남긴다.
+      - name: 운영 .env 반영
+        env:
+          PROD_ENV: ${{ secrets.PROD_ENV }}
+        run: |
+          for k in DB_PASSWORD APP_BASE_URL DATA_GO_KR_KEY KAKAO_REST_KEY; do
+            printf '%s\n' "$PROD_ENV" | grep -q "^$k=." || { echo "::error::PROD_ENV에 $k가 없다"; exit 1; }
+          done
+          new=$(printf '%s\n' "$PROD_ENV" | grep '^DB_PASSWORD=' | cut -d= -f2- | sha256sum)
+          old=$(ssh prod "grep '^DB_PASSWORD=' /root/cheongdam-prod/.env | cut -d= -f2- | sha256sum")
+          [ "$new" = "$old" ] || { echo "::error::DB_PASSWORD가 서버 값과 다르다. DB 접속이 끊기므로 멈춘다"; exit 1; }
+          printf '%s\n' "$PROD_ENV" | ssh prod 'cd /root/cheongdam-prod && umask 077 && cat > .env.new && cp -p .env .env.bak && mv .env.new .env'
+
+      # 이미지를 받는 동안 메모리를 조금이라도 비운다. 다음 단계의 compose up이 다시 띄운다.
+      - name: 배치 잠시 중지
+        run: ssh prod 'cd /root/cheongdam-prod && docker compose -p cheongdam stop batch'
+
       - name: 이미지 전송
         run: docker save cheongdam-backend:prod cheongdam-batch:prod cheongdam-web:prod | gzip | ssh prod 'gunzip | docker load'
 
