@@ -104,12 +104,17 @@ public class NoticeService {
 				items(located, today, OffsetDateTime.now(clock)));
 	}
 
-	/** 월간 일정(S-10). 접수 상태는 달력이 기간을 정하므로 쓰지 않는다. */
+	/**
+	 * 월간 일정(S-10). 접수 상태는 달력이 기간을 정하므로 쓰지 않는다.
+	 * 공고 유형을 고르지 않았으면 공공임대(수시·상시 모집이 대부분)는 뺀다. 분양 일정이 묻히지 않게.
+	 */
 	public NoticeCalendarResponse calendar(YearMonth month, NoticeFilter f) {
 		LocalDate first = month.atDay(1);
 		LocalDate last = month.atEndOfMonth();
+		boolean dropRent = f.noticeType().isEmpty();
 		Map<String, String> names = noticeRepository
 				.findAll(NoticeSpecifications.matching(f, LocalDate.now(clock), Set.of("status"), false)).stream()
+				.filter(n -> !dropRent || !"public_rent".equals(n.getNoticeType()))
 				.collect(Collectors.toMap(Notice::getHouseManageNo, Notice::getName));
 		// shortcut: 필터에 맞는 공고 전체의 일정을 읽어 걸러 낸다. 공고가 수천 건을 넘으면 날짜 조건을 쿼리로 옮긴다
 		List<Event> events = scheduleRepository.findByIdHouseManageNoIn(names.keySet()).stream()

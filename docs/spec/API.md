@@ -265,7 +265,8 @@
 ### 월간 일정 `GET /api/notices/calendar` (S-10)
 
 - 쿼리: `month=YYYY-MM`(필수, 형식이 틀리면 `400 invalid_param`) + 목록(2장)과 같은 필터 쿼리. `status`, `sort`, `limit`, `offset`은 무시한다.
-- 그 달과 하루라도 겹치는 단계별 일정을 내린다. 기간 안의 날마다 펼치는 일은 화면이 한다.
+- 그 달과 하루라도 겹치는 단계별 일정을 내린다. 화면은 기간이 있는 단계를 시작일과 마감일에만 찍는다.
+- `notice_type`을 주지 않으면 공공임대(`public_rent`) 공고는 뺀다. `notice_type=public_rent`를 주면 나온다.
 
 ```json
 {

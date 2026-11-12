@@ -127,6 +127,14 @@ class NoticeApiTest {
 				.andExpect(jsonPath("$.events[2].end_on").value("2026-11-02"));
 		mvc.perform(get("/api/notices/calendar").param("month", "2026-11").param("region", "경기"))
 				.andExpect(jsonPath("$.events[*].stage").value(org.hamcrest.Matchers.contains("contract")));
+		// 공공임대는 공고 유형을 고르지 않으면 달력에서 빠지고, 고르면 나온다
+		notice("R1", "public_rent", "public", "경기", "행복주택 상시모집", -30, 400);
+		jdbc.sql(sql).param("no", "R1").param("stage", "general").param("area", "all")
+				.param("s", TODAY.minusDays(30)).param("e", TODAY.plusDays(400)).update();
+		mvc.perform(get("/api/notices/calendar").param("month", "2026-10"))
+				.andExpect(jsonPath("$.events.length()").value(3));
+		mvc.perform(get("/api/notices/calendar").param("month", "2026-10").param("notice_type", "public_rent"))
+				.andExpect(jsonPath("$.events[*].house_manage_no").value(org.hamcrest.Matchers.contains("R1")));
 		mvc.perform(get("/api/notices/calendar").param("month", "2026-13"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error.code").value("invalid_param"));

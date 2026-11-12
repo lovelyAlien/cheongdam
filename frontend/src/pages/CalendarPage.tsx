@@ -23,6 +23,9 @@ const KINDS: { key: string; label: string; stages: string[] | null }[] = [
 const CELL_CHIPS = 2
 
 const stageLabel = (s: string) => STAGE_LABEL[s] ?? s
+/** 달력 칸·목록의 표시 단위. 'rank1'은 그날 하루짜리이거나 시작, 'rank1:end'는 마감 */
+const markStage = (mark: string) => mark.split(':')[0]
+const markLabel = (mark: string) => stageLabel(markStage(mark)) + (mark.endsWith(':end') ? ' 마감' : '')
 
 function thisMonth(): string {
   const t = new Date()
@@ -35,27 +38,26 @@ function shiftMonth(month: string, delta: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 }
 
-type DayItem = { no: string; name: string; stages: string[] }
+type DayItem = { no: string; name: string; marks: string[] }
 
 /**
- * 그 달의 날마다 일정이 있는 공고를 모은다. 기간이 있는 일정(계약 등)은 기간 안의 날마다 넣고,
- * 같은 공고의 단계는 한 줄로 묶는다(지역별 1·2순위가 여러 줄로 반복되지 않게). 키는 YYYY-MM-DD.
- * stages에는 단계 키(rank1 등)를 담는다. 색과 이름은 그릴 때 정한다.
+ * 그 달의 날마다 일정이 있는 공고를 모은다. 기간이 있는 일정(계약 등)은 시작일과 마감일에만 넣는다.
+ * 기간 내내 칠하면 상시·장기 모집이 모든 날을 채워 그날 할 일이 묻힌다.
+ * 같은 공고의 표시는 한 줄로 묶는다(지역별 1·2순위가 여러 줄로 반복되지 않게). 키는 YYYY-MM-DD.
  */
 function itemsByDay(events: CalendarEvent[], month: string): Map<string, DayItem[]> {
-  const [y, m] = month.split('-').map(Number)
-  const last = new Date(y, m, 0).getDate()
   const out = new Map<string, DayItem[]>()
+  const add = (key: string, e: CalendarEvent, mark: string) => {
+    if (!key.startsWith(month)) return
+    const day = out.get(key) ?? []
+    const item = day.find((i) => i.no === e.house_manage_no)
+    if (!item) day.push({ no: e.house_manage_no, name: e.name, marks: [mark] })
+    else if (!item.marks.includes(mark)) item.marks.push(mark)
+    out.set(key, day)
+  }
   for (const e of events) {
-    for (let d = 1; d <= last; d++) {
-      const key = ymd(y, m, d)
-      if (key < e.start_on || key > e.end_on) continue
-      const day = out.get(key) ?? []
-      const item = day.find((i) => i.no === e.house_manage_no)
-      if (!item) day.push({ no: e.house_manage_no, name: e.name, stages: [e.stage] })
-      else if (!item.stages.includes(e.stage)) item.stages.push(e.stage)
-      out.set(key, day)
-    }
+    add(e.start_on, e, e.stage)
+    if (e.end_on !== e.start_on) add(e.end_on, e, `${e.stage}:end`)
   }
   return out
 }
@@ -171,7 +173,7 @@ export function CalendarPage() {
           <li key={it.no} className="row">
             <Link className="cal-event plain" to={`/notices/${it.no}`}>
               <span className="cal-stages">
-                {it.stages.map((st) => <span key={st} className={`badge stage st-${st}`}>{stageLabel(st)}</span>)}
+                {it.marks.map((mk) => <span key={mk} className={`badge stage st-${markStage(mk)}`}>{markLabel(mk)}</span>)}
               </span>
               <span className="cal-name">{it.name}</span>
             </Link>
@@ -238,7 +240,7 @@ export function CalendarPage() {
                   {desktop ? (
                     <span className="day-chips" aria-hidden="true">
                       {items.slice(0, CELL_CHIPS).map((it) => (
-                        <span key={it.no} className={`day-chip st-${it.stages[0]}`}>{it.name}</span>
+                        <span key={it.no} className={`day-chip st-${markStage(it.marks[0])}`}>{it.name}</span>
                       ))}
                       {n > CELL_CHIPS && <span className="day-more">+{n - CELL_CHIPS}개</span>}
                     </span>
