@@ -100,6 +100,7 @@ git push origin v1.2.0
 2. 러너에서 `cheongdam-{backend,batch,web}:prod` 이미지를 빌드한다.
 3. 서버에서 안 쓰는 이미지·빌드 캐시·오래된 로그를 지우고, 디스크 여유가 500MB 미만이면 멈춘다. 실행 중인 앱의 이미지는 지우지 않는다.
 4. `PROD_ENV` 시크릿을 서버 `.env`로 쓴다. 필수 키(`DB_PASSWORD`, `APP_BASE_URL`, `DATA_GO_KR_KEY`, `KAKAO_REST_KEY`)가 없거나 `DB_PASSWORD`가 서버 값과 다르면 멈춘다. 이전 파일은 `.env.bak`으로 남는다.
+   이어서 [`deploy/docker-compose.prod.yml`](deploy/docker-compose.prod.yml)을 서버 `docker-compose.yml`로 복사한다. 서버에서 문법을 확인한 뒤 바꾸고, 이전 파일은 `docker-compose.yml.bak`으로 남는다.
 5. 이미지를 받는 동안 배치 컨테이너만 잠시 멈추고, `docker save | gzip | ssh … docker load`로 서버에 올린다.
 6. 서버의 `/root/cheongdam-prod`에서 `docker compose -p cheongdam up -d`(배치도 다시 뜬다) 후 옛 이미지를 지운다.
 7. `/api/notices`가 2분 반 안에 응답하지 않으면 실패로 끝내고 백엔드 로그를 남긴다.
@@ -116,7 +117,8 @@ git push origin v1.2.0
 | `VITE_KAKAO_JS_KEY` | 카카오 JavaScript 키(웹 번들에 들어간다) |
 | `PROD_ENV` | 운영 `.env` 파일 전체. 처음에는 서버 파일을 그대로 넣는다(아래) |
 
-서버에는 `/root/cheongdam-prod`에 `cheongdam-*:prod` 이미지를 쓰는 compose 파일과 `.env`가 미리 있어야 한다.
+서버의 `/root/cheongdam-prod`는 배포가 쓰는 작업 폴더다. compose 파일과 `.env`를 배포 때마다 덮어쓰므로 직접 고치지 않는다.
+처음 한 번은 이 폴더와 `.env`가 있어야 한다(`DB_PASSWORD`를 서버 값과 비교하기 때문). 운영 설정을 바꿀 때는 compose는 `deploy/docker-compose.prod.yml`을 PR로, 값은 `PROD_ENV` 시크릿으로 바꾼 뒤 태그를 올린다.
 
 **운영 `.env` 관리**: 원본은 `PROD_ENV` 시크릿이다. 서버 `.env`를 직접 고치면 다음 배포 때 덮어써진다.
 처음 한 번은 서버 파일을 그대로 올린다(값이 화면에 나오지 않는다).
