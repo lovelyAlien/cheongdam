@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
+import { useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import { ApiError, changeConditions } from '../api/alerts'
 import { fetchNoticeMap, fetchNotices } from '../api/notices'
 import type { NoticeItem, NoticeList, NoticeMapData } from '../api/types'
@@ -26,6 +26,7 @@ import { toConditions } from '../lib/alertConditions'
 import { clearEdit, readEdit } from '../lib/alertEdit'
 import { formatDate } from '../lib/format'
 import { useDesktop } from '../lib/useDesktop'
+import { TopNav } from '../components/TopNav'
 import { loadListState, saveListState } from '../lib/listState'
 
 // API의 limit 상한(API.md 2장). 더 보기를 5번 넘게 눌렀어도 복원은 여기까지만 한다.
@@ -265,10 +266,7 @@ export function NoticeListPage() {
 
   return (
     <main className={desktop ? (split ? 'list-page desktop map-view-on' : 'list-page desktop') : 'list-page'}>
-      <header className="topbar">
-        <h1>청담</h1>
-        <Link className="btn small-btn plain" to={`/calendar?${toParams(filters)}`}>캘린더</Link>
-      </header>
+      <TopNav query={toParams(filters).toString()} brandIsTitle />
 
       {edit && (
         <div className="banner">
