@@ -219,6 +219,10 @@ button.evidence[aria-expanded='true'] { background: var(--accent); color: #fff; 
 /* ---- 목록 카드 4줄 + 관심 ♡ (S-01, D-33) ---- */
 .topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 8px; }
 .topbar h1 { padding: 0; }
+.brand { margin: 0; font-size: 20px; font-weight: 800; }
+.top-tabs { display: flex; gap: 4px; }
+.top-tabs a { padding: 8px 12px; border-radius: 10px; color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 600; }
+.top-tabs a[aria-current='page'] { background: var(--accent-soft); color: var(--accent); }
 .card { position: relative; }
 .card .badges { padding-right: 36px; }
 .card-name { margin: 0; font-size: 17px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -264,9 +268,32 @@ button.evidence[aria-expanded='true'] { background: var(--accent); color: #fff; 
 .cal-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .cal-stages { display: flex; flex-wrap: wrap; gap: 4px; }
 .badge.stage { background: var(--accent-soft); color: var(--accent); }
+/* 단계별 색(S-10). 같은 색을 날짜 칸 칩·목록 배지·범례에 쓴다 */
+.st-special { --st: #7c3aed; }
+.st-rank1 { --st: #16a34a; }
+.st-rank2 { --st: #0d9488; }
+.st-general { --st: #2563eb; }
+.st-no_rank { --st: #0284c7; }
+.st-winner { --st: #d97706; }
+.st-contract { --st: #dc2626; }
+@media (prefers-color-scheme: dark) {
+  [class*='st-'] { --st-text: color-mix(in srgb, var(--st) 55%, white); }
+}
+.badge.stage[class*='st-'], .day-chip { background: color-mix(in srgb, var(--st) 14%, transparent); color: var(--st-text, var(--st)); }
+.cal-kinds { margin: 0 0 12px; }
+.calendar-page h1.page-title { margin: 4px 0 0; }
+.day-chips { display: grid; gap: 2px; width: 100%; padding: 0 4px; min-width: 0; }
+.day-chip { display: block; padding: 1px 4px; border-radius: 4px; font-size: 11px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.day-more { font-size: 11px; color: var(--muted); text-align: left; }
+.cal-day.sel .day-more { color: #fff; }
+.cal-day.sel .day-chip { background: var(--surface); }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 12px 0 0; padding: 10px 4px 0; border-top: 1px solid var(--line); list-style: none; font-size: 12px; color: var(--muted); }
+.cal-legend li::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; background: var(--st); }
+.cal-sheet .rows { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 960px) {
   .list-page.calendar-page { max-width: 1040px; }
   .cal-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
   .cal-list { margin-top: 0; position: sticky; top: 16px; }
-  .cal-day { min-height: 64px; }
+  .cal-day { min-height: 84px; align-items: stretch; }
+  .cal-day .day-num { align-self: center; }
 }
