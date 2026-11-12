@@ -71,9 +71,10 @@ git push origin v1.2.0
 
 1. CI(백엔드 빌드·테스트, 프론트 린트·빌드)를 돌리고, 실패하면 배포하지 않는다.
 2. 러너에서 `cheongdam-{backend,batch,web}:prod` 이미지를 빌드한다.
-3. `docker save | gzip | ssh … docker load`로 서버에 올린다.
-4. 서버의 `/root/cheongdam-prod`에서 `docker compose -p cheongdam up -d` 후 안 쓰는 이미지를 지운다.
-5. `/api/notices`가 2분 반 안에 응답하지 않으면 실패로 끝내고 백엔드 로그를 남긴다.
+3. 서버에서 안 쓰는 이미지·빌드 캐시·오래된 로그를 지우고, 디스크 여유가 500MB 미만이면 멈춘다. 실행 중인 앱의 이미지는 지우지 않는다.
+4. 이미지를 받는 동안 배치 컨테이너만 잠시 멈추고, `docker save | gzip | ssh … docker load`로 서버에 올린다.
+5. 서버의 `/root/cheongdam-prod`에서 `docker compose -p cheongdam up -d`(배치도 다시 뜬다) 후 옛 이미지를 지운다.
+6. `/api/notices`가 2분 반 안에 응답하지 않으면 실패로 끝내고 백엔드 로그를 남긴다.
 
 진행 상황은 GitHub의 Actions 탭 → Deploy에서 본다. 배포는 한 번에 하나만 돌고, 진행 중인 배포는 취소되지 않는다.
 
