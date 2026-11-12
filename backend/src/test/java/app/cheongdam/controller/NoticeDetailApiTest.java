@@ -29,7 +29,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /** 오늘을 2026-10-22(목) 한국 시간으로 고정하고 상세 API와 캘린더를 확인한다. */
-@SpringBootTest
+@SpringBootTest(properties = "app.base-url=https://base.example")
 @AutoConfigureMockMvc
 @Testcontainers
 @Import(NoticeDetailApiTest.FixedClockConfig.class)
@@ -172,6 +172,7 @@ class NoticeDetailApiTest {
 		assertThat(ics).contains("DTSTART;VALUE=DATE:20261021", "DTEND;VALUE=DATE:20261023"); // 10.21~10.22 → 종료는 다음 날(배타)
 		assertThat(ics).contains("SUMMARY:[청담] 자이 센트럴 1순위 접수 (해당지역)");
 		assertThat(ics).contains("TRIGGER:-PT15H").contains("\r\n");
+		assertThat(ics).contains("청담 상세: https://base.example/notices/D1"); // 메일과 같은 app.base-url을 쓴다
 	}
 
 	@Test

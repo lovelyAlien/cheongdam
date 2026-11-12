@@ -19,7 +19,7 @@ public class NoticeCalendarService {
 	private final String baseUrl;
 
 	public NoticeCalendarService(NoticeDetailService detailService, Clock clock,
-			@Value("${cheongdam.base-url:https://cheongdam.app}") String baseUrl) {
+			@Value("${app.base-url}") String baseUrl) {
 		this.detailService = detailService;
 		this.clock = clock;
 		this.baseUrl = baseUrl;
