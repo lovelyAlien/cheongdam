@@ -1,0 +1,67 @@
+# 운영 서버(runvas, 메모리 1GB)용. deploy.yml이 배포 때마다 서버 /root/cheongdam-prod/docker-compose.yml로 복사한다.
+# 서버 파일을 직접 고치면 다음 배포 때 덮어써지므로 여기를 고친다. 값은 PROD_ENV 시크릿(.env)에서 온다.
+# 이미지는 러너에서 빌드해 docker load로 올린다. extractor는 메모리가 모자라 띄우지 않는다.
+services:
+  db:
+    image: postgres:17
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=30"]
+    environment:
+      POSTGRES_DB: cheongdam
+      POSTGRES_USER: cheongdam
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD를 .env에 설정하세요}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cheongdam"]
+      interval: 5s
+      retries: 10
+    mem_limit: 256m
+    restart: unless-stopped
+
+  backend:
+    image: cheongdam-backend:prod
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/cheongdam
+      DB_USER: cheongdam
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_BASE_URL: ${APP_BASE_URL}
+      # 메일 발송기. 빈 값을 넘기면 발송기 빈이 하나도 안 뜨므로 기본값을 반드시 둔다
+      APP_MAIL_PROVIDER: ${APP_MAIL_PROVIDER:-none}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      APP_ALERTS_DISPATCH_ENABLED: ${APP_ALERTS_DISPATCH_ENABLED:-false}
+      JAVA_TOOL_OPTIONS: -Xmx256m -XX:+UseSerialGC
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 420m
+    restart: unless-stopped
+
+  batch:
+    image: cheongdam-batch:prod
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: ${DB_PASSWORD}
+      DATA_GO_KR_KEY: ${DATA_GO_KR_KEY:-}
+      KAKAO_REST_KEY: ${KAKAO_REST_KEY:-}
+      PDF_DIR: /data/pdfs
+    volumes:
+      - pdfdata:/data/pdfs
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 192m
+    restart: unless-stopped
+
+  web:
+    image: cheongdam-web:prod
+    ports:
+      - "127.0.0.1:8000:80"   # 호스트 nginx가 TLS를 맡고 여기로 프록시한다
+    depends_on:
+      - backend
+    mem_limit: 48m
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  pdfdata:

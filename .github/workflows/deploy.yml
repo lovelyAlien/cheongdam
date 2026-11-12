@@ -70,6 +70,12 @@ jobs:
           [ "$new" = "$old" ] || { echo "::error::DB_PASSWORD가 서버 값과 다르다. DB 접속이 끊기므로 멈춘다"; exit 1; }
           printf '%s\n' "$PROD_ENV" | ssh prod 'cd /root/cheongdam-prod && umask 077 && cat > .env.new && cp -p .env .env.bak && mv .env.new .env'
 
+      # 운영 compose의 원본은 저장소의 deploy/docker-compose.prod.yml이다. 서버에서 문법을 확인한 뒤 바꾼다.
+      # 기존 파일은 docker-compose.yml.bak으로 남긴다.
+      - name: 운영 compose 반영
+        run: |
+          ssh prod 'cd /root/cheongdam-prod && cat > docker-compose.yml.new && docker compose -p cheongdam -f docker-compose.yml.new config -q && cp -p docker-compose.yml docker-compose.yml.bak && mv docker-compose.yml.new docker-compose.yml' < deploy/docker-compose.prod.yml
+
       # 이미지를 받는 동안 메모리를 조금이라도 비운다. 다음 단계의 compose up이 다시 띄운다.
       - name: 배치 잠시 중지
         run: ssh prod 'cd /root/cheongdam-prod && docker compose -p cheongdam stop batch'
